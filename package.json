@@ -1,12 +1,16 @@
 {
   "name": "carlo-munno-photo-portal",
-  "version": "2.0.0",
-  "description": "Portale fotografico Carlo Munno con sincronizzazione Google Drive e gallerie clienti protette",
+  "version": "2.1.0",
+  "description": "Portale fotografico Carlo Munno con sincronizzazione Google Drive, gallerie clienti protette e supporto Netlify",
   "main": "server.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
+    "@netlify/blobs": "^8.1.0",
     "dotenv": "^16.4.7",
     "googleapis": "^144.0.0"
   },
@@ -15,6 +19,7 @@
     "google-drive",
     "gallery",
     "client-portal",
+    "netlify",
     "nodejs"
   ],
   "author": "Carlo Munno",
