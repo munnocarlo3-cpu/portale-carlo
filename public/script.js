@@ -30,15 +30,56 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   ];
 
-  // Rileva se la pagina è stata aperta tramite link cliente (/?album=<token> o /share/<token>)
+  const RESERVED_SHARE_SLUGS = new Set([
+    'api',
+    'share',
+    'index.html',
+    'style.css',
+    'script.js',
+    'favicon.ico',
+    'robots.txt',
+    'sitemap.xml',
+    'assets',
+    'netlify',
+    '.netlify'
+  ]);
+
+  function normalizeShareSlug(username) {
+    return String(username || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9_-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .replace(/-{2,}/g, '-')
+      .slice(0, 80);
+  }
+
+  function isValidClientRouteSlug(val) {
+    if (!val || typeof val !== 'string') return false;
+    const clean = val.trim();
+    if (/^[a-f0-9]{16,128}$/i.test(clean)) return true;
+    const lower = clean.toLowerCase();
+    return /^[a-z0-9][a-z0-9_-]{1,127}$/.test(lower) && !RESERVED_SHARE_SLUGS.has(lower);
+  }
+
+  // Rileva se la pagina è stata aperta tramite link cliente (/<nomecliente>, /share/<token> o /?album=<token>)
   function detectShareTokenFromUrl() {
     const params = new URLSearchParams(window.location.search);
     const queryToken = params.get('album');
-    if (queryToken && /^[a-f0-9]{16,128}$/i.test(queryToken.trim())) {
+    if (queryToken && isValidClientRouteSlug(queryToken)) {
       return queryToken.trim();
     }
-    const pathMatch = window.location.pathname.match(/^\/share\/([a-f0-9]{16,128})\/?$/i);
-    return pathMatch ? pathMatch[1] : null;
+    const legacyMatch = window.location.pathname.match(/^\/share\/([^/]+)\/?$/i);
+    if (legacyMatch && isValidClientRouteSlug(legacyMatch[1])) {
+      return legacyMatch[1];
+    }
+    const rootSlugMatch = window.location.pathname.match(/^\/([^/]+)\/?$/i);
+    if (rootSlugMatch && isValidClientRouteSlug(rootSlugMatch[1])) {
+      return rootSlugMatch[1];
+    }
+    return null;
   }
 
   const CLIENT_SHARE_TOKEN = detectShareTokenFromUrl();
@@ -982,10 +1023,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     dom.shareClientPassword.value = '';
     dom.shareRegenerateToken.checked = false;
 
-    const previewUrl = album.shareUrl || (album.shareToken ? `${window.location.origin}/share/${album.shareToken}` : '');
+    const isLegacyRandomToken = /^[a-f0-9]{48}$/i.test(album.shareToken || '');
+    const slugFromUser = normalizeShareSlug(album.clientUsername || '');
+    const fallbackSlug = !isLegacyRandomToken && album.shareToken ? album.shareToken : slugFromUser;
+    const previewUrl = album.shareUrl && !isLegacyRandomToken
+      ? album.shareUrl
+      : (fallbackSlug ? `${window.location.origin}/${fallbackSlug}` : '');
     dom.shareLinkPreview.value = previewUrl;
     dom.modalShareAlbum.classList.remove('hidden');
   }
+
+  function updateSharePreviewFromUsername() {
+    const slug = normalizeShareSlug(dom.shareClientUsername.value);
+    dom.shareLinkPreview.value =
+      slug && slug.length >= 2 && !RESERVED_SHARE_SLUGS.has(slug)
+        ? `${window.location.origin}/${slug}`
+        : '';
+  }
+
+  dom.shareClientUsername.addEventListener('input', updateSharePreviewFromUsername);
 
   function closeShareModal() {
     dom.modalShareAlbum.classList.add('hidden');
@@ -1139,7 +1195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       if (meRes.ok) {
         const me = await meRes.json();
-        if (me.role === 'client' && me.shareToken === shareToken) {
+        if (me.role === 'client' && String(me.shareToken || '').toLowerCase() === shareToken.toLowerCase()) {
           state.role = 'client';
           state.token = savedToken || null;
           await loadClientGallery();

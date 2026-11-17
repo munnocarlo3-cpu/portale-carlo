@@ -13,7 +13,8 @@ import { getConfig } from './lib/config.js';
 import {
   applySecurityHeaders,
   sendJson,
-  parseJsonBody
+  parseJsonBody,
+  isValidShareToken
 } from './lib/security.js';
 import { createStore } from './lib/store.js';
 import { createDriveService } from './lib/drive.js';
@@ -57,8 +58,13 @@ export function createAppServer(options = {}) {
     }
 
     let mappedFile = PUBLIC_STATIC_FILES.get(decodedPath);
-    if (!mappedFile && /^\/share\/[a-f0-9]{16,128}\/?$/i.test(decodedPath)) {
-      mappedFile = 'index.html';
+    if (!mappedFile) {
+      const legacyShareMatch = decodedPath.match(/^\/share\/([^/]+)\/?$/);
+      const rootSlugMatch = decodedPath.match(/^\/([^/]+)\/?$/);
+      const candidateToken = legacyShareMatch?.[1] || rootSlugMatch?.[1] || '';
+      if (candidateToken && isValidShareToken(candidateToken)) {
+        mappedFile = 'index.html';
+      }
     }
 
     if (!mappedFile) {

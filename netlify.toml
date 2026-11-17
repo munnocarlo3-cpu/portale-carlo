@@ -10,6 +10,6 @@
   node_bundler = "esbuild"
 
 [[redirects]]
-  from = "/share/*"
+  from = "/*"
   to = "/index.html"
   status = 200
