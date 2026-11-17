@@ -1,0 +1,9 @@
+node_modules/
+.env
+.DS_Store
+Thumbs.db
+progetto_completo.txt
+uploads/
+users.json
+albums.json
+photos.json

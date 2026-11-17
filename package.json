@@ -1,0 +1,22 @@
+{
+  "name": "carlo-munno-photo-portal",
+  "version": "2.0.0",
+  "description": "Portale fotografico Carlo Munno con sincronizzazione Google Drive e gallerie clienti protette",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "googleapis": "^144.0.0"
+  },
+  "keywords": [
+    "photography",
+    "google-drive",
+    "gallery",
+    "client-portal",
+    "nodejs"
+  ],
+  "author": "Carlo Munno",
+  "license": "ISC"
+}

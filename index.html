@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carlo Munno Photographer | Portale & Gallerie Google Drive</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- SFONDO DINAMICO CON ROTAZIONE IMMAGINI (KEN BURNS) -->
+  <div id="bg-slideshow-container" class="bg-slideshow-container" aria-hidden="true">
+    <div id="bg-slide-1" class="bg-slide active"></div>
+    <div id="bg-slide-2" class="bg-slide"></div>
+    <div class="bg-overlay"></div>
+  </div>
+
+  <!-- Controllore Fluttuante dello Sfondo Dinamico -->
+  <div class="bg-control-widget" id="bg-control-widget">
+    <div class="bg-control-info">
+      <span class="bg-live-dot"></span>
+      <span id="bg-current-name">Rotazione Sfondo Attiva</span>
+    </div>
+    <div class="bg-control-btns">
+      <button type="button" class="btn-bg-icon" id="btn-bg-prev" title="Foto Precedente">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <button type="button" class="btn-bg-icon" id="btn-bg-toggle-play" title="Pausa / Riproduci rotazione">
+        <svg id="icon-bg-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        <svg id="icon-bg-play" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+      <button type="button" class="btn-bg-icon" id="btn-bg-next" title="Foto Successiva">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Contenitore Notifiche Toast -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- Header Applicazione -->
+  <header class="app-header">
+    <div class="logo">
+      <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+      <div class="logo-brand">
+        <span class="brand-name">Carlo Munno</span>
+        <span class="brand-tagline">Photographer</span>
+      </div>
+    </div>
+
+    <div class="header-actions" id="header-actions">
+      <!-- Visibile solo in modalità Admin -->
+      <div id="connection-status" class="status-badge hidden" title="Stato backend e Google Drive">
+        <span class="status-dot"></span>
+        <span id="status-text">Verifica connessione...</span>
+      </div>
+
+      <button type="button" class="btn-danger btn-header-logout hidden" id="btn-logout-header" title="Disconnettiti">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        <span>Esci</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="main-container">
+    <!-- =======================================================================
+         1. VISTA LOGIN ADMIN (SOLO PROPRIETARIO)
+         ======================================================================= -->
+    <section id="admin-login-card" class="auth-card hidden" aria-label="Accesso Amministratore">
+      <div class="card-header">
+        <span class="role-pill admin-pill">Area Proprietario</span>
+        <h1>Bentornato</h1>
+        <p>Accedi per sincronizzare Google Drive e gestire gli album per i tuoi clienti</p>
+      </div>
+
+      <form id="form-admin-login" class="auth-form active" novalidate>
+        <div class="form-group">
+          <label for="admin-email">Email Amministratore</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <input type="email" id="admin-email" placeholder="email@tuodominio.it" required autocomplete="email">
+          </div>
+          <span class="field-error" id="admin-email-error"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="admin-password">Password</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="admin-password" placeholder="••••••••" required autocomplete="current-password">
+            <button type="button" class="toggle-password" data-target="admin-password" aria-label="Mostra o nascondi password">
+              <svg class="eye-icon eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg class="eye-icon eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            </button>
+          </div>
+          <span class="field-error" id="admin-password-error"></span>
+        </div>
+
+        <div class="form-options">
+          <label class="checkbox-container">
+            <input type="checkbox" id="admin-remember-me" checked>
+            <span class="checkmark"></span>
+            <span class="checkbox-label">Ricordami su questo dispositivo</span>
+          </label>
+        </div>
+
+        <button type="submit" class="btn-primary" id="btn-admin-login-submit">
+          <span class="btn-text">Accedi al Pannello</span>
+          <span class="spinner" aria-hidden="true"></span>
+        </button>
+      </form>
+    </section>
+
+    <!-- =======================================================================
+         2. DASHBOARD ADMIN (GOOGLE DRIVE SYNC & GESTIONE ALBUM CLIENTI)
+         ======================================================================= -->
+    <section id="admin-dashboard-card" class="dashboard-card hidden" aria-label="Pannello Amministratore">
+      <div class="dashboard-topbar">
+        <div class="user-profile-header">
+          <div class="user-avatar" id="dash-admin-avatar">C</div>
+          <div class="user-meta">
+            <div class="user-title-row">
+              <h2 id="dash-admin-name">Carlo Munno</h2>
+              <span class="dashboard-badge"><span class="pulse-icon"></span> Admin &bull; Google Drive</span>
+            </div>
+            <p id="dash-admin-email">-</p>
+          </div>
+        </div>
+
+        <div class="dashboard-top-actions">
+          <button type="button" class="btn-primary-action" id="btn-drive-sync">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            <span class="btn-text">Sincronizza da Google Drive</span>
+            <span class="spinner" aria-hidden="true"></span>
+          </button>
+
+          <button type="button" class="btn-secondary" id="btn-open-editor-admin" title="Apri la palette di modifica fotografica">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+            </svg>
+            Editor Foto
+          </button>
+
+          <button type="button" class="btn-secondary" id="btn-refresh-admin" title="Aggiorna elenco album e foto">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+              <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+              <path d="M21 3v5h-5"/>
+            </svg>
+            Aggiorna
+          </button>
+
+          <button type="button" class="btn-danger" id="btn-logout-admin" title="Esci">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            Esci
+          </button>
+        </div>
+      </div>
+
+      <!-- Avviso configurazione Google Drive se .env non completo -->
+      <div id="drive-config-warning" class="drive-warning-banner hidden">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span>
+          Google Drive Service Account non ancora configurato in <code>.env</code>.
+          Imposta <code>GOOGLE_SERVICE_ACCOUNT_EMAIL</code>, <code>GOOGLE_PRIVATE_KEY</code> e <code>GOOGLE_DRIVE_ROOT_FOLDER_ID</code> per sincronizzare le cartelle.
+        </span>
+      </div>
+
+      <!-- Statistiche Admin -->
+      <div class="dashboard-stats-grid">
+        <div class="stat-box">
+          <span class="stat-label">Album da Drive</span>
+          <span class="stat-value active-val" id="stat-albums-count">0 album</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Foto Sincronizzate</span>
+          <span class="stat-value active-val" id="stat-photos-count">0 foto</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Link Clienti Attivi</span>
+          <span class="stat-value" id="stat-shared-count">0 condivisi</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Sfondo Home Attivo</span>
+          <span class="stat-value" id="stat-slideshow-count">0 foto</span>
+        </div>
+      </div>
+
+      <!-- Elenco Album sincronizzati da Google Drive -->
+      <div class="photo-upload-section">
+        <div class="albums-section-container">
+          <div class="albums-section-header">
+            <div class="albums-header-title">
+              <div class="albums-icon-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+              </div>
+              <div class="albums-header-texts">
+                <h3>Album Google Drive</h3>
+                <p>Ogni sottocartella nella Root Drive diventa un album condivisibile con credenziali dedicate</p>
+              </div>
+              <span class="badge-count" id="admin-albums-badge">0 album</span>
+            </div>
+
+            <div class="album-chips-list" id="admin-album-chips"></div>
+          </div>
+
+          <div class="albums-cards-grid" id="admin-albums-grid"></div>
+
+          <div class="gallery-empty-state hidden" id="admin-albums-empty">
+            <div class="empty-state-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+            <h4>Nessun album sincronizzato</h4>
+            <p>Clicca su <strong>Sincronizza da Google Drive</strong> per importare le cartelle e le foto dalla tua Root Folder.</p>
+          </div>
+        </div>
+
+        <!-- Griglia Foto dell'Album selezionato -->
+        <div class="gallery-container">
+          <div class="gallery-toolbar">
+            <div class="current-album-view-info">
+              <span id="admin-gallery-title">Tutte le foto</span>
+              <span id="admin-gallery-count" class="badge-count">0 foto</span>
+            </div>
+            <button type="button" class="btn-secondary btn-sm hidden" id="btn-open-album-lightbox">
+              Apri nel Lightbox
+            </button>
+          </div>
+
+          <div class="gallery-grid" id="admin-gallery-grid"></div>
+
+          <div class="gallery-empty-state hidden" id="admin-gallery-empty">
+            <div class="empty-state-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+            </div>
+            <h4>Nessuna foto da mostrare</h4>
+            <p>Aggiungi immagini nelle sottocartelle su Google Drive ed esegui una nuova sincronizzazione.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         3A. VISTA LOGIN CLIENTE (/?album=<shareToken> o /share/<shareToken>)
+         ======================================================================= -->
+    <section id="client-login-card" class="auth-card hidden" aria-label="Accesso Galleria Cliente">
+      <div class="card-header">
+        <span class="role-pill client-pill">Galleria Riservata</span>
+        <h1 id="client-login-album-name">Caricamento galleria...</h1>
+        <p id="client-login-album-desc">Inserisci le credenziali fornite dal fotografo per accedere ai tuoi scatti</p>
+      </div>
+
+      <!-- Messaggio link revocato o non valido -->
+      <div id="client-unavailable-box" class="client-unavailable-box hidden">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="unavailable-icon">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+        <h3>Galleria non disponibile</h3>
+        <p id="client-unavailable-msg">Questo link non è attivo o non è più valido. Contatta Carlo Munno Photographer.</p>
+      </div>
+
+      <form id="form-client-login" class="auth-form active" novalidate>
+        <div class="form-group">
+          <label for="client-username">Username Galleria</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <input type="text" id="client-username" placeholder="es. marco_sara" required autocomplete="username">
+          </div>
+          <span class="field-error" id="client-username-error"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="client-password">Password</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="client-password" placeholder="••••••••" required autocomplete="current-password">
+            <button type="button" class="toggle-password" data-target="client-password" aria-label="Mostra o nascondi password">
+              <svg class="eye-icon eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg class="eye-icon eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            </button>
+          </div>
+          <span class="field-error" id="client-password-error"></span>
+        </div>
+
+        <button type="submit" class="btn-primary" id="btn-client-login-submit">
+          <span class="btn-text">Apri Galleria</span>
+          <span class="spinner" aria-hidden="true"></span>
+        </button>
+      </form>
+    </section>
+
+    <!-- =======================================================================
+         3B. VISTA GALLERIA CLIENTE AUTENTICATA
+         ======================================================================= -->
+    <section id="client-gallery-card" class="dashboard-card hidden" aria-label="Galleria Cliente">
+      <div class="dashboard-topbar">
+        <div class="user-profile-header">
+          <div class="user-avatar client-avatar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:26px;height:26px;">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </div>
+          <div class="user-meta">
+            <div class="user-title-row">
+              <h2 id="client-gallery-title">Galleria Foto</h2>
+              <span class="dashboard-badge" id="client-gallery-count">0 foto</span>
+            </div>
+            <p id="client-gallery-desc">Seleziona una foto per ingrandirla a schermo intero o scaricare il file originale</p>
+          </div>
+        </div>
+
+        <div class="dashboard-top-actions">
+          <button type="button" class="btn-secondary" id="btn-client-slideshow-open">
+            Visualizza Slideshow
+          </button>
+          <button type="button" class="btn-danger" id="btn-client-logout">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            Esci dalla Galleria
+          </button>
+        </div>
+      </div>
+
+      <div class="gallery-grid" id="client-gallery-grid"></div>
+
+      <div class="gallery-empty-state hidden" id="client-gallery-empty">
+        <div class="empty-state-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+        </div>
+        <h4>Nessuna foto disponibile</h4>
+        <p>Il fotografo non ha ancora pubblicato scatti in questo album.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- =========================================================================
+       MODAL ADMIN: CONDIVIDI ALBUM CON CLIENTE
+       ========================================================================= -->
+  <div id="modal-share-album" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="share-modal-title">
+    <div class="modal-content modal-share-content">
+      <button type="button" class="modal-close modal-close-corner" id="btn-close-share-modal" aria-label="Chiudi finestra">&times;</button>
+
+      <div class="modal-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="18" cy="5" r="3"/>
+          <circle cx="6" cy="12" r="3"/>
+          <circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+      </div>
+
+      <h2 id="share-modal-title">Condividi Album con Cliente</h2>
+      <p class="modal-desc" id="share-modal-album-name">Configura link e credenziali dedicate</p>
+
+      <form id="form-share-album" class="share-form" novalidate>
+        <div class="share-toggle-row">
+          <label class="checkbox-container">
+            <input type="checkbox" id="share-enabled-toggle">
+            <span class="checkmark"></span>
+            <span class="checkbox-label">Attiva accesso cliente tramite link dedicato</span>
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label for="share-client-username">Username Cliente *</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <input type="text" id="share-client-username" placeholder="es. marco_sara_2026" autocomplete="off">
+          </div>
+          <span class="field-error" id="share-client-username-error"></span>
+        </div>
+
+        <div class="form-group">
+          <div class="label-row">
+            <label for="share-client-password">Password Cliente</label>
+            <button type="button" class="btn-link" id="btn-generate-client-pwd">Genera Password Sicura</button>
+          </div>
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="text" id="share-client-password" placeholder="Minimo 6 caratteri (lascia vuoto per mantenere l'attuale)" autocomplete="new-password">
+          </div>
+          <span class="field-error" id="share-client-password-error"></span>
+        </div>
+
+        <div class="share-toggle-row">
+          <label class="checkbox-container">
+            <input type="checkbox" id="share-regenerate-token">
+            <span class="checkmark"></span>
+            <span class="checkbox-label">Rigenera link di condivisione (revoca il link precedente)</span>
+          </label>
+        </div>
+
+        <div class="share-result-box" id="share-result-box">
+          <label for="share-link-preview">Link Diretto Cliente</label>
+          <div class="share-copy-row">
+            <input type="text" id="share-link-preview" readonly>
+            <button type="button" class="btn-secondary btn-sm" id="btn-copy-share-link">Copia Link</button>
+          </div>
+          <button type="button" class="btn-secondary btn-sm btn-copy-bundle" id="btn-copy-share-bundle">
+            Copia Messaggio Completo (Link + Credenziali)
+          </button>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-share-modal">Chiudi</button>
+          <button type="submit" class="btn-primary" id="btn-save-share-config">
+            <span class="btn-text">Salva Condivisione</span>
+            <span class="spinner" aria-hidden="true"></span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL LIGHTBOX A SCHERMO INTERO (ADMIN & CLIENTE)
+       ========================================================================= -->
+  <div id="modal-lightbox" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Visualizzatore Foto">
+    <div class="lightbox-content" id="lightbox-card-container">
+      <div class="lightbox-top-toolbar">
+        <div class="lightbox-counter-badge" id="lightbox-counter-badge">1 di 1</div>
+        <div class="lightbox-top-btns">
+          <button type="button" class="lightbox-icon-btn" id="lightbox-rotate-left-btn" title="Ruota -90° (antiorario)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M2.5 2v6h6M2.66 15.57a10 10 0 1 0 .57-8.38l-2.6 2.6"/>
+            </svg>
+          </button>
+          <button type="button" class="lightbox-icon-btn" id="lightbox-rotate-right-btn" title="Ruota +90° (orario)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l2.6 2.6"/>
+            </svg>
+          </button>
+          <button type="button" class="lightbox-icon-btn" id="lightbox-fullscreen-toggle" title="Attiva / Disattiva Schermo Intero">
+            <svg id="icon-enter-fullscreen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+            <svg id="icon-exit-fullscreen" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+            </svg>
+          </button>
+          <button type="button" class="modal-close lightbox-close" id="btn-close-lightbox" aria-label="Chiudi anteprima">&times;</button>
+        </div>
+      </div>
+
+      <div class="lightbox-img-wrapper" id="lightbox-img-wrapper">
+        <button type="button" class="lightbox-nav-btn prev" id="lightbox-btn-prev" title="Foto Precedente (Freccia Sinistra)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <img id="lightbox-image" src="" alt="Anteprima ingrandita">
+        <button type="button" class="lightbox-nav-btn next" id="lightbox-btn-next" title="Foto Successiva (Freccia Destra)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+
+      <div class="lightbox-footer">
+        <div class="lightbox-meta">
+          <h4 id="lightbox-filename">foto.jpg</h4>
+          <span id="lightbox-info">-</span>
+        </div>
+        <div class="lightbox-actions">
+          <button type="button" class="btn-secondary hidden" id="lightbox-edit-btn" title="Modifica foto con la palette editor">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+            </svg>
+            Modifica Foto
+          </button>
+          <a id="lightbox-download-link" href="#" download class="btn-primary" title="Scarica il file originale">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Scarica Foto
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL ADMIN: PALETTE EDITOR FOTOGRAFICO (CANVAS 2D)
+       ========================================================================= -->
+  <div id="modal-photo-editor" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="editor-modal-title">
+    <div class="studio-modal-content">
+      <div class="studio-modal-header">
+        <div class="studio-title-wrap">
+          <div class="studio-badge-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+            </svg>
+          </div>
+          <div>
+            <h2 id="editor-modal-title">Palette Editor Fotografico</h2>
+            <p>Applica filtri, regolazioni colore e rotazioni in tempo reale</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" id="btn-close-editor" aria-label="Chiudi editor">&times;</button>
+      </div>
+
+      <div class="studio-view active editor-modal-body">
+        <div class="editor-workspace">
+          <div class="editor-canvas-container">
+            <div class="canvas-wrapper">
+              <canvas id="photo-editor-canvas"></canvas>
+            </div>
+            <div class="editor-current-photo-name" id="editor-photo-label">Seleziona una foto da modificare</div>
+          </div>
+
+          <div class="editor-sidebar">
+            <div class="editor-section">
+              <h4>Foto da Modificare</h4>
+              <select id="editor-photo-select" class="editor-photo-select"></select>
+            </div>
+
+            <div class="editor-section">
+              <h4>Filtri Rapidi</h4>
+              <div class="filter-presets-grid">
+                <button type="button" class="btn-preset active" data-preset="normal">Originale</button>
+                <button type="button" class="btn-preset" data-preset="vivid">Vibrante</button>
+                <button type="button" class="btn-preset" data-preset="bw">Bianco &amp; Nero</button>
+                <button type="button" class="btn-preset" data-preset="vintage">Vintage</button>
+                <button type="button" class="btn-preset" data-preset="warm">Caldo</button>
+                <button type="button" class="btn-preset" data-preset="cyber">Cyberpunk</button>
+              </div>
+            </div>
+
+            <div class="editor-section">
+              <h4>Regolazioni Fine</h4>
+              <div class="slider-control">
+                <div class="slider-label"><span>Luminosità</span><span id="val-brightness">100%</span></div>
+                <input type="range" id="slider-brightness" min="40" max="180" value="100">
+              </div>
+              <div class="slider-control">
+                <div class="slider-label"><span>Contrasto</span><span id="val-contrast">100%</span></div>
+                <input type="range" id="slider-contrast" min="40" max="180" value="100">
+              </div>
+              <div class="slider-control">
+                <div class="slider-label"><span>Saturazione</span><span id="val-saturation">100%</span></div>
+                <input type="range" id="slider-saturation" min="0" max="200" value="100">
+              </div>
+              <div class="slider-control">
+                <div class="slider-label"><span>Sepia</span><span id="val-sepia">0%</span></div>
+                <input type="range" id="slider-sepia" min="0" max="100" value="0">
+              </div>
+              <div class="slider-control">
+                <div class="slider-label"><span>Sfocatura Sfondo</span><span id="val-blur">0px</span></div>
+                <input type="range" id="slider-blur" min="0" max="10" value="0">
+              </div>
+            </div>
+
+            <div class="editor-section">
+              <h4>Rotazione &amp; Riflessione</h4>
+              <div class="transform-actions-grid">
+                <button type="button" class="btn-secondary" id="btn-rotate-left" title="Ruota 90° antiorario">-90°</button>
+                <button type="button" class="btn-secondary" id="btn-rotate-right" title="Ruota 90° orario">+90°</button>
+                <button type="button" class="btn-secondary" id="btn-flip-h" title="Rifletti orizzontalmente">&harr; Specchia H</button>
+                <button type="button" class="btn-secondary" id="btn-flip-v" title="Rifletti verticalmente">&updownarrow; Specchia V</button>
+              </div>
+            </div>
+
+            <div class="editor-footer-actions editor-footer-stack">
+              <div class="editor-footer-row">
+                <button type="button" class="btn-secondary" id="btn-reset-editor">Reimposta</button>
+                <button type="button" class="btn-secondary" id="btn-download-edited-photo">Scarica Copia</button>
+              </div>
+              <button type="button" class="btn-primary" id="btn-save-edited-photo">
+                <span class="btn-text">Salva Modifiche su Drive</span>
+                <span class="spinner" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/script.js"></script>
+</body>
+</html>
