@@ -1,21 +1,22 @@
 /**
- * Server Web & API Locale / Railway / VPS (Node.js) - Carlo Munno Photographer
+ * Server Web & API Locale / Railway / VPS (Node.js ESM) - Carlo Munno Photographer
  * Avvolge il router unificato `lib/apiRouter.js` e serve gli asset statici da `public/`.
  */
 
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
+import http from 'http';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const { getConfig } = require('./lib/config');
-const {
+import { getConfig } from './lib/config.js';
+import {
   applySecurityHeaders,
   sendJson,
   parseJsonBody
-} = require('./lib/security');
-const { createStore } = require('./lib/store');
-const { createDriveService } = require('./lib/drive');
-const { createApiRouter } = require('./lib/apiRouter');
+} from './lib/security.js';
+import { createStore } from './lib/store.js';
+import { createDriveService } from './lib/drive.js';
+import { createApiRouter } from './lib/apiRouter.js';
 
 const PUBLIC_STATIC_FILES = new Map([
   ['/', 'index.html'],
@@ -30,13 +31,12 @@ const STATIC_MIME_TYPES = {
   '.js': 'text/javascript; charset=utf-8'
 };
 
-function createAppServer(options = {}) {
+export function createAppServer(options = {}) {
   const config = getConfig(options);
   const store = createStore(config, options.storeDriver || null);
   const drive = options.driveService || createDriveService(config);
   const router = createApiRouter({ config, store, drive });
 
-  // Inizializzazione file/utenti all'avvio
   const initPromise = router.ensureInitialized().catch((err) => {
     console.error('[INIT] Errore inizializzazione store:', err.message);
   });
@@ -146,7 +146,11 @@ function createAppServer(options = {}) {
   return { server, config, store, drive, router, ready: initPromise };
 }
 
-if (require.main === module) {
+const isEntrypoint =
+  Boolean(process.argv[1]) &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isEntrypoint) {
   const { server, config, drive, ready } = createAppServer();
   ready.then(() => {
     server.listen(config.port, () => {
@@ -159,5 +163,3 @@ if (require.main === module) {
     });
   });
 }
-
-module.exports = { createAppServer };

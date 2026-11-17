@@ -1,6 +1,7 @@
 {
   "name": "carlo-munno-photo-portal",
-  "version": "2.1.0",
+  "version": "2.1.1",
+  "type": "module",
   "description": "Portale fotografico Carlo Munno con sincronizzazione Google Drive, gallerie clienti protette e supporto Netlify",
   "main": "server.js",
   "engines": {

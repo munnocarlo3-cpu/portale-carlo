@@ -1,19 +1,13 @@
 /**
- * Netlify Functions v2 Entrypoint (/api/*)
+ * Netlify Functions v2 Entrypoint (/api/*) - 100% ESM
  * Esegue lo stesso router API di server.js utilizzando Netlify Blobs + sessioni HMAC stateless.
  */
 import { Readable } from 'stream';
-import configMod from '../../lib/config.js';
-import securityMod from '../../lib/security.js';
-import storeMod from '../../lib/store.js';
-import driveMod from '../../lib/drive.js';
-import routerMod from '../../lib/apiRouter.js';
-
-const { getConfig } = configMod;
-const { getSecurityHeaders } = securityMod;
-const { createStore } = storeMod;
-const { createDriveService } = driveMod;
-const { createApiRouter } = routerMod;
+import { getConfig } from '../../lib/config.js';
+import { getSecurityHeaders } from '../../lib/security.js';
+import { createStore } from '../../lib/store.js';
+import { createDriveService } from '../../lib/drive.js';
+import { createApiRouter } from '../../lib/apiRouter.js';
 
 let cachedInstance = null;
 
@@ -46,72 +40,89 @@ function getNetlifyRouter(overrides = {}) {
 }
 
 export async function handleNetlifyRequest(req, context = {}, overrides = {}) {
-  const { config, router } = getNetlifyRouter(overrides);
+  try {
+    const { config, router } = getNetlifyRouter(overrides);
 
-  const headers = {};
-  req.headers.forEach((value, key) => {
-    headers[key.toLowerCase()] = value;
-  });
+    const headers = {};
+    req.headers.forEach((value, key) => {
+      headers[key.toLowerCase()] = value;
+    });
 
-  const secHeaders = getSecurityHeaders(headers['origin'], config.port, config.publicBaseUrl);
+    const secHeaders = getSecurityHeaders(headers['origin'], config.port, config.publicBaseUrl);
 
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: secHeaders });
-  }
-
-  const urlObj = new URL(req.url);
-  const forwardedProto = String(headers['x-forwarded-proto'] || '').split(',')[0].trim();
-  const protocol = forwardedProto || urlObj.protocol.replace(':', '') || 'https';
-  const host = headers['x-forwarded-host'] || headers['host'] || urlObj.host;
-
-  const result = await router.handle({
-    method: req.method,
-    pathname: urlObj.pathname,
-    searchParams: urlObj.searchParams,
-    headers,
-    ip: context?.ip || headers['x-nf-client-connection-ip'] || 'unknown',
-    host,
-    protocol,
-    readJsonBody: async (maxBytes = 1024 * 1024) => {
-      const raw = await req.text();
-      if (Buffer.byteLength(raw, 'utf8') > maxBytes) {
-        throw new Error('Richiesta troppo grande');
-      }
-      try {
-        return raw ? JSON.parse(raw) : {};
-      } catch {
-        throw new Error('JSON non valido');
-      }
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: secHeaders });
     }
-  });
 
-  if (!result) {
-    return new Response(JSON.stringify({ message: 'Endpoint API non trovato.' }), {
-      status: 404,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        ...secHeaders
+    const urlObj = new URL(req.url);
+    const forwardedProto = String(headers['x-forwarded-proto'] || '').split(',')[0].trim();
+    const protocol = forwardedProto || urlObj.protocol.replace(':', '') || 'https';
+    const host = headers['x-forwarded-host'] || headers['host'] || urlObj.host;
+
+    const result = await router.handle({
+      method: req.method,
+      pathname: urlObj.pathname,
+      searchParams: urlObj.searchParams,
+      headers,
+      ip: context?.ip || headers['x-nf-client-connection-ip'] || 'unknown',
+      host,
+      protocol,
+      readJsonBody: async (maxBytes = 1024 * 1024) => {
+        const raw = await req.text();
+        if (Buffer.byteLength(raw, 'utf8') > maxBytes) {
+          throw new Error('Richiesta troppo grande');
+        }
+        try {
+          return raw ? JSON.parse(raw) : {};
+        } catch {
+          throw new Error('JSON non valido');
+        }
       }
     });
-  }
 
-  const finalHeaders = {
-    ...secHeaders,
-    ...(result.headers || {})
-  };
+    if (!result) {
+      return new Response(JSON.stringify({ message: 'Endpoint API non trovato.' }), {
+        status: 404,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          ...secHeaders
+        }
+      });
+    }
 
-  if (result.stream) {
-    const webStream = Readable.toWeb(result.stream);
-    return new Response(webStream, {
+    const finalHeaders = {
+      ...secHeaders,
+      ...(result.headers || {})
+    };
+
+    if (result.stream) {
+      const webStream =
+        typeof ReadableStream !== 'undefined' && result.stream instanceof ReadableStream
+          ? result.stream
+          : Readable.toWeb(result.stream);
+      return new Response(webStream, {
+        status: result.status,
+        headers: finalHeaders
+      });
+    }
+
+    return new Response(result.body, {
       status: result.status,
       headers: finalHeaders
     });
+  } catch (err) {
+    console.error('[NETLIFY_API_ERROR]', err);
+    return new Response(
+      JSON.stringify({
+        message: 'Errore interno del server API.',
+        detail: err?.message || 'Errore sconosciuto'
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json; charset=utf-8' }
+      }
+    );
   }
-
-  return new Response(result.body, {
-    status: result.status,
-    headers: finalHeaders
-  });
 }
 
 export default async function handler(req, context) {
