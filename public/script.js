@@ -1146,11 +1146,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  function ensureShareSavedBeforeCopy() {
+    const album = state.albums.find(a => a.id === state.activeShareAlbumId);
+    const hasUnsavedChanges =
+      !album ||
+      dom.shareEnabledToggle.checked !== Boolean(album.shareEnabled) ||
+      dom.shareClientUsername.value.trim() !== (album.clientUsername || '') ||
+      Boolean(dom.shareClientPassword.value) ||
+      Boolean(dom.shareRegenerateToken.checked);
+
+    if (hasUnsavedChanges) {
+      showToast('error', 'Salva Prima la Condivisione', 'Clicca su "Salva Condivisione" per salvare e attivare questo link.');
+      dom.btnSaveShareConfig.focus();
+      return false;
+    }
+    if (!album.shareEnabled) {
+      showToast('error', 'Condivisione Disattivata', 'Attiva il checkbox e clicca "Salva Condivisione" prima di copiare il link.');
+      dom.shareEnabledToggle.focus();
+      return false;
+    }
+    return true;
+  }
+
   dom.btnCopyShareLink.addEventListener('click', () => {
+    if (!ensureShareSavedBeforeCopy()) return;
     copyToClipboard(dom.shareLinkPreview.value, 'Link diretto cliente copiato.');
   });
 
   dom.btnCopyShareBundle.addEventListener('click', () => {
+    if (!ensureShareSavedBeforeCopy()) return;
     const album = state.albums.find(a => a.id === state.activeShareAlbumId);
     const link = dom.shareLinkPreview.value;
     const username = dom.shareClientUsername.value.trim();
