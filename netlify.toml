@@ -2,6 +2,10 @@
   publish = "public"
   functions = "netlify/functions"
 
+[build.environment]
+  # Evita falsi positivi su valori non segreti (es. PORT=3000 o nome fotografo in HTML)
+  SECRETS_SCAN_OMIT_KEYS = "PORT,ADMIN_NAME,PUBLIC_BASE_URL"
+
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["googleapis", "@netlify/blobs"]
