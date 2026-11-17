@@ -12,10 +12,8 @@ import { createApiRouter } from '../../lib/apiRouter.js';
 let cachedInstance = null;
 
 function getRuntimeEnv() {
-  const netlifyEnv =
-    typeof globalThis.Netlify !== 'undefined' && globalThis.Netlify?.env
-      ? globalThis.Netlify.env.toObject()
-      : {};
+  const envApi = typeof globalThis.Netlify !== 'undefined' ? globalThis.Netlify?.env : null;
+  const netlifyEnv = envApi && typeof envApi.toObject === 'function' ? envApi.toObject() : {};
   return {
     ...process.env,
     ...netlifyEnv,

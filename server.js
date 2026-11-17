@@ -7,6 +7,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 
 import { getConfig } from './lib/config.js';
 import {
@@ -151,6 +152,11 @@ const isEntrypoint =
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isEntrypoint) {
+  const envFilePath = path.join(path.dirname(fileURLToPath(import.meta.url)), '.env');
+  if (fs.existsSync(envFilePath)) {
+    dotenv.config({ path: envFilePath });
+  }
+
   const { server, config, drive, ready } = createAppServer();
   ready.then(() => {
     server.listen(config.port, () => {

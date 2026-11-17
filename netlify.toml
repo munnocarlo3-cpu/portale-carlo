@@ -8,7 +8,6 @@
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["googleapis", "@netlify/blobs"]
 
 [[redirects]]
   from = "/share/*"
