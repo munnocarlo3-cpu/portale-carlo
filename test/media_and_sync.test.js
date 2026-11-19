@@ -12,6 +12,8 @@ const { createDriveService } = await import('../lib/drive.js');
 const { createApiRouter } = await import('../lib/apiRouter.js');
 const { handleNetlifyRequest } = await import('../netlify/functions/api.mjs');
 
+const TEST_ADMIN_PASSWORD = `TestPwd_${crypto.randomBytes(12).toString('hex')}`;
+
 const VALID_PNG_BYTES = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
   0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52
@@ -139,7 +141,7 @@ test('Media proxy authorization matrix, thumb disk cache, ETag 304, Drive relink
     const env = {
       SESSION_SECRET: 'm'.repeat(40),
       ADMIN_EMAIL: 'carlo@munno.it',
-      ADMIN_PASSWORD: 'AdminPassword123!'
+      ADMIN_PASSWORD: TEST_ADMIN_PASSWORD
     };
     const config = getConfig({ dataDir: tmpDir, env });
     const store = createStore(config);
@@ -216,7 +218,7 @@ test('Media proxy authorization matrix, thumb disk cache, ETag 304, Drive relink
     await router.ensureInitialized();
 
     const adminLogin = await router.handle(
-      makeReq('POST', '/api/admin/login', { body: { email: 'carlo@munno.it', password: 'AdminPassword123!' } })
+      makeReq('POST', '/api/admin/login', { body: { email: 'carlo@munno.it', password: TEST_ADMIN_PASSWORD } })
     );
     const adminToken = JSON.parse(adminLogin.body).token;
     const adminCookie = String(adminLogin.headers['Set-Cookie']).split(';')[0];
@@ -408,7 +410,7 @@ test('Video sync, slideshow exclusion, byte-range streaming (Node & Netlify), an
     const env = {
       SESSION_SECRET: 'v'.repeat(40),
       ADMIN_EMAIL: 'carlo@munno.it',
-      ADMIN_PASSWORD: 'AdminPassword123!',
+      ADMIN_PASSWORD: TEST_ADMIN_PASSWORD,
       GOOGLE_SERVICE_ACCOUNT_EMAIL: 'svc@test.iam.gserviceaccount.com',
       GOOGLE_PRIVATE_KEY: TEST_RSA_PRIVATE_KEY,
       GOOGLE_DRIVE_ROOT_FOLDER_ID: 'root_vid'
@@ -420,7 +422,7 @@ test('Video sync, slideshow exclusion, byte-range streaming (Node & Netlify), an
     await router.ensureInitialized();
 
     const adminLogin = await router.handle(
-      makeReq('POST', '/api/admin/login', { body: { email: 'carlo@munno.it', password: 'AdminPassword123!' } })
+      makeReq('POST', '/api/admin/login', { body: { email: 'carlo@munno.it', password: TEST_ADMIN_PASSWORD } })
     );
     const adminAuth = { authorization: `Bearer ${JSON.parse(adminLogin.body).token}` };
 

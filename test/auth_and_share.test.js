@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import { Readable } from 'node:stream';
+
+const TEST_ADMIN_PASSWORD = `TestPwd_${crypto.randomBytes(12).toString('hex')}`;
 
 const { getConfig } = await import('../lib/config.js');
 const { createStore } = await import('../lib/store.js');
@@ -70,7 +73,7 @@ test('Admin login rate limiting, HMAC session cookies, scoped logout, and persis
   const env = {
     SESSION_SECRET: 's'.repeat(40),
     ADMIN_EMAIL: 'carlo@munno.it',
-    ADMIN_PASSWORD: 'AdminPassword123!',
+    ADMIN_PASSWORD: TEST_ADMIN_PASSWORD,
     ADMIN_NAME: 'Carlo Munno'
   };
   const config = getConfig({ env });
@@ -92,7 +95,7 @@ test('Admin login rate limiting, HMAC session cookies, scoped logout, and persis
   }
   const blocked = await router1.handle(
     makeReq('POST', '/api/admin/login', {
-      body: { email: 'carlo@munno.it', password: 'AdminPassword123!' },
+      body: { email: 'carlo@munno.it', password: TEST_ADMIN_PASSWORD },
       ip: '203.0.113.10'
     })
   );
@@ -102,7 +105,7 @@ test('Admin login rate limiting, HMAC session cookies, scoped logout, and persis
   // Successful login from another IP yields sid_admin cookie
   const login1 = await router1.handle(
     makeReq('POST', '/api/admin/login', {
-      body: { email: 'carlo@munno.it', password: 'AdminPassword123!', rememberMe: true },
+      body: { email: 'carlo@munno.it', password: TEST_ADMIN_PASSWORD, rememberMe: true },
       ip: '203.0.113.11'
     })
   );
@@ -114,7 +117,7 @@ test('Admin login rate limiting, HMAC session cookies, scoped logout, and persis
 
   const login2 = await router1.handle(
     makeReq('POST', '/api/admin/login', {
-      body: { email: 'carlo@munno.it', password: 'AdminPassword123!', rememberMe: true },
+      body: { email: 'carlo@munno.it', password: TEST_ADMIN_PASSWORD, rememberMe: true },
       ip: '203.0.113.12'
     })
   );
@@ -160,7 +163,7 @@ test('Client share config, slug collision, reserved slugs, separated cookies, an
   const env = {
     SESSION_SECRET: 's'.repeat(40),
     ADMIN_EMAIL: 'carlo@munno.it',
-    ADMIN_PASSWORD: 'AdminPassword123!'
+    ADMIN_PASSWORD: TEST_ADMIN_PASSWORD
   };
   const config = getConfig({ env });
   const driver = createMemoryDriver({
@@ -180,7 +183,7 @@ test('Client share config, slug collision, reserved slugs, separated cookies, an
 
   const adminLogin = await router.handle(
     makeReq('POST', '/api/admin/login', {
-      body: { email: 'carlo@munno.it', password: 'AdminPassword123!' }
+      body: { email: 'carlo@munno.it', password: TEST_ADMIN_PASSWORD }
     })
   );
   const { token: adminToken } = JSON.parse(adminLogin.body);

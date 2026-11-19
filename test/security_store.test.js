@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -7,6 +8,7 @@ import { EventEmitter } from 'node:events';
 import { execSync } from 'node:child_process';
 
 const ROOT_DIR = path.resolve(import.meta.dirname, '..');
+const TEST_ADMIN_PASSWORD = `TestPwd_${crypto.randomBytes(12).toString('hex')}`;
 
 const { getConfig } = await import('../lib/config.js');
 const {
@@ -142,7 +144,7 @@ test('Store uses atomic writes, backs up corrupt JSON without wiping data, and s
       env: {
         SESSION_SECRET: 'x'.repeat(40),
         ADMIN_EMAIL: 'admin@test.it',
-        ADMIN_PASSWORD: 'SuperSecretPassword1!'
+        ADMIN_PASSWORD: TEST_ADMIN_PASSWORD
       }
     });
     const store = createStore(config);
@@ -189,7 +191,7 @@ test('server.js and Netlify entrypoint emit security headers and handle corrupt 
       PORT: '3000',
       SESSION_SECRET: 'z'.repeat(40),
       ADMIN_EMAIL: 'carlo@munno.it',
-      ADMIN_PASSWORD: 'AdminPassword123!'
+      ADMIN_PASSWORD: TEST_ADMIN_PASSWORD
     };
     const app = createAppServer({ dataDir: tmpDir, env });
     await app.ready;
