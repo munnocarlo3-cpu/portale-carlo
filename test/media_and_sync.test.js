@@ -359,6 +359,18 @@ test('Video sync, slideshow exclusion, byte-range streaming (Node & Netlify), an
                 mimeType: 'video/mp4',
                 size: String(VIDEO_BYTES.length),
                 videoMediaMetadata: { width: 1920, height: 1080, durationMillis: '64000' }
+              },
+              {
+                id: 'vid_oct',
+                name: 'iphone_clip.MOV',
+                mimeType: 'application/octet-stream',
+                size: '1024'
+              },
+              {
+                id: 'doc_skip',
+                name: 'notes.pdf',
+                mimeType: 'application/pdf',
+                size: '500'
               }
             ]
           }),
@@ -417,9 +429,13 @@ test('Video sync, slideshow exclusion, byte-range streaming (Node & Netlify), an
     assert.equal(syncRes.status, 200);
     const syncBody = JSON.parse(syncRes.body);
     assert.equal(syncBody.stats.totalImages, 1);
-    assert.equal(syncBody.stats.totalVideos, 1);
+    assert.equal(syncBody.stats.totalVideos, 2);
     const alb = syncBody.albums[0];
     const vid = syncBody.photos.find(p => p.driveFileId === 'vid_1');
+    const vidOct = syncBody.photos.find(p => p.driveFileId === 'vid_oct');
+    assert.equal(vidOct.mimeType, 'video/quicktime');
+    assert.equal(vidOct.mediaType, 'video');
+    assert.equal(syncBody.photos.some(p => p.driveFileId === 'doc_skip'), false);
     assert.equal(vid.mediaType, 'video');
     assert.equal(vid.durationMillis, 64000);
     assert.equal(vid.width, 1920);
