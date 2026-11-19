@@ -14,6 +14,7 @@ import {
   applySecurityHeaders,
   sendJson,
   parseJsonBody,
+  parseBinaryBody,
   isValidShareToken
 } from './lib/security.js';
 import { createStore } from './lib/store.js';
@@ -96,7 +97,11 @@ export function createAppServer(options = {}) {
   }
 
   const server = http.createServer(async (req, res) => {
-    applySecurityHeaders(req, res, config.port, config.publicBaseUrl);
+    const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase();
+    const protocol = forwardedProto || (req.socket?.encrypted ? 'https' : 'http');
+    const isHttps = protocol === 'https';
+
+    applySecurityHeaders(req, res, config.port, config.publicBaseUrl, { isHttps });
 
     if (req.method === 'OPTIONS') {
       res.writeHead(204);
@@ -111,40 +116,50 @@ export function createAppServer(options = {}) {
     }
 
     if (urlObj.pathname.startsWith('/api/')) {
-      const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
-      const protocol = forwardedProto || (req.socket?.encrypted ? 'https' : 'http');
-
-      const result = await router.handle({
-        method: req.method,
-        pathname: urlObj.pathname,
-        searchParams: urlObj.searchParams,
-        headers: req.headers || {},
-        ip: req.socket?.remoteAddress || 'unknown',
-        host: req.headers['x-forwarded-host'] || req.headers.host || `localhost:${config.port}`,
-        protocol,
-        readJsonBody: (maxBytes) => parseJsonBody(req, maxBytes)
-      });
-
-      if (!result) {
-        return sendJson(res, 404, { message: 'Endpoint API non trovato.' });
-      }
-
-      if (result.stream) {
-        res.writeHead(result.status, result.headers);
-        result.stream.on('error', () => {
-          if (!res.headersSent) {
-            sendJson(res, 502, { message: 'Errore durante lo streaming da Google Drive.' });
-          } else {
-            res.end();
-          }
+      try {
+        const result = await router.handle({
+          method: req.method,
+          pathname: urlObj.pathname,
+          searchParams: urlObj.searchParams,
+          headers: req.headers || {},
+          ip: req.socket?.remoteAddress || 'unknown',
+          host: req.headers['x-forwarded-host'] || req.headers.host || `localhost:${config.port}`,
+          protocol,
+          readJsonBody: (maxBytes) => parseJsonBody(req, maxBytes),
+          readBinaryBody: (maxBytes) => parseBinaryBody(req, maxBytes)
         });
-        result.stream.pipe(res);
+
+        if (!result) {
+          return sendJson(res, 404, { message: 'Endpoint API non trovato.' });
+        }
+
+        if (result.stream) {
+          res.writeHead(result.status, result.headers);
+          result.stream.on('error', () => {
+            if (!res.headersSent) {
+              sendJson(res, 502, { message: 'Errore durante lo streaming da Google Drive.' });
+            } else {
+              res.end();
+            }
+          });
+          result.stream.pipe(res);
+          return;
+        }
+
+        res.writeHead(result.status, result.headers);
+        res.end(result.body ?? undefined);
+        return;
+      } catch (err) {
+        console.error('[SERVER_API_ERROR]', err);
+        if (!res.headersSent) {
+          return sendJson(res, 500, {
+            message: 'Errore interno del server API.',
+            detail: err?.message || 'Errore sconosciuto'
+          });
+        }
+        res.end();
         return;
       }
-
-      res.writeHead(result.status, result.headers);
-      res.end(result.body);
-      return;
     }
 
     serveStatic(req, res, urlObj.pathname);
@@ -165,6 +180,10 @@ if (isEntrypoint) {
 
   const { server, config, drive, ready } = createAppServer();
   ready.then(() => {
+    if (!config.session.configured && config.session.warning) {
+      console.warn(`\n⚠️  [SECURITY] ${config.session.warning}`);
+      console.warn('⚠️  [SECURITY] Su Netlify/produzione SESSION_SECRET (>= 32 caratteri) è obbligatoria.\n');
+    }
     server.listen(config.port, () => {
       console.log('\n=================================================');
       console.log('📸 Carlo Munno Photographer - Portale Google Drive');

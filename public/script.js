@@ -33,6 +33,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   const RESERVED_SHARE_SLUGS = new Set([
     'api',
     'share',
+    'admin',
+    'login',
+    'logout',
+    'dashboard',
+    'health',
+    'auth',
+    'me',
+    'media',
+    'public',
+    'uploads',
+    'static',
+    'favicon',
     'index.html',
     'style.css',
     'script.js',
@@ -91,6 +103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     role: null, // 'admin' | 'client' | null
     token: null,
     adminUser: null,
+    runtime: 'node',
     driveConfigured: false,
     albums: [],
     photos: [],
@@ -499,6 +512,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const res = await fetch('/api/health');
       if (res.ok) {
         const data = await res.json();
+        state.runtime = data.runtime || 'node';
         state.driveConfigured = Boolean(data.driveConfigured);
         dom.statusBadge.classList.add('connected');
         dom.statusText.textContent = state.driveConfigured
@@ -519,12 +533,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const savedToken = getStoredAdminToken();
 
     try {
-      const res = await fetch('/api/me', {
+      const res = await fetch('/api/me?scope=admin', {
         headers: savedToken ? { Authorization: `Bearer ${savedToken}` } : {}
       });
       if (res.ok) {
         const data = await res.json();
         if (data.role === 'admin' && data.user) {
+          if (data.security && !data.security.sessionSecretConfigured && data.security.sessionSecretWarning) {
+            console.warn('[SECURITY]', data.security.sessionSecretWarning);
+          }
           state.role = 'admin';
           state.token = savedToken || null;
           state.adminUser = data.user;
@@ -727,7 +744,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           ${shareBadgeHtml}
           ${slideshowBadgeHtml}
         </div>
-        <div class="album-card-actions" onclick="event.stopPropagation()">
+        <div class="album-card-actions">
+          <button type="button" class="btn-album-action btn-open-lightbox" ${albumPhotos.length === 0 ? 'disabled' : ''} title="Apri le foto di questo album nel Lightbox">
+            Apri Slideshow
+          </button>
           <button type="button" class="btn-album-action btn-share-client" title="Configura link e credenziali per il cliente">
             Condividi con Cliente
           </button>
@@ -743,8 +763,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       card.addEventListener('click', () => {
         state.selectedAlbumId = album.id;
         renderAdminDashboard();
+      });
+
+      body.querySelector('.album-card-actions').addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+
+      body.querySelector('.btn-open-lightbox').addEventListener('click', () => {
+        state.selectedAlbumId = album.id;
+        renderAdminDashboard();
         if (albumPhotos.length > 0) {
-          openLightbox(albumPhotos[0], albumPhotos, { canDownload: true });
+          openLightbox(albumPhotos[0], albumPhotos);
         }
       });
 
@@ -784,7 +813,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       dom.btnOpenAlbumLightbox.classList.toggle('hidden', filteredPhotos.length === 0);
       dom.btnOpenAlbumLightbox.onclick = () => {
         if (filteredPhotos.length > 0) {
-          openLightbox(filteredPhotos[0], filteredPhotos, { canDownload: true });
+          openLightbox(filteredPhotos[0], filteredPhotos);
         }
       };
     }
@@ -800,7 +829,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     filteredPhotos.forEach(photo => {
       const card = buildPhotoCardElement(photo, {
         albumLabel: albumNameById.get(photo.albumId) || '',
-        onOpen: () => openLightbox(photo, filteredPhotos, { canDownload: true }),
+        onOpen: () => openLightbox(photo, filteredPhotos),
         onEdit: () => photoEditor.open(photo)
       });
       dom.adminGalleryGrid.appendChild(card);
@@ -989,9 +1018,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   async function performAdminLogout({ expired = false } = {}) {
-    if (state.token && !expired) {
+    if (!expired) {
       try {
-        await fetch('/api/logout', { method: 'POST', headers: getAuthHeaders() });
+        await fetch('/api/logout?scope=admin', { method: 'POST', headers: getAuthHeaders() });
       } catch {}
     }
     clearAdminToken();
@@ -1214,7 +1243,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       dom.formClientLogin.classList.remove('hidden');
 
       const savedToken = getStoredClientToken(shareToken);
-      const meRes = await fetch('/api/me', {
+      const meRes = await fetch('/api/me?scope=client', {
         headers: savedToken ? { Authorization: `Bearer ${savedToken}` } : {}
       });
       if (meRes.ok) {
@@ -1333,7 +1362,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     state.clientPhotos.forEach(photo => {
       const card = buildPhotoCardElement(photo, {
-        onOpen: () => openLightbox(photo, state.clientPhotos, { canDownload: true })
+        onOpen: () => openLightbox(photo, state.clientPhotos)
       });
       dom.clientGalleryGrid.appendChild(card);
     });
@@ -1342,15 +1371,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (dom.btnClientSlideshowOpen) {
     dom.btnClientSlideshowOpen.addEventListener('click', () => {
       if (state.clientPhotos.length > 0) {
-        openLightbox(state.clientPhotos[0], state.clientPhotos, { canDownload: true });
+        openLightbox(state.clientPhotos[0], state.clientPhotos);
       }
     });
   }
 
   async function performClientLogout({ expired = false } = {}) {
-    if (state.token && !expired) {
+    if (!expired) {
       try {
-        await fetch('/api/logout', { method: 'POST', headers: getAuthHeaders() });
+        await fetch('/api/logout?scope=client', { method: 'POST', headers: getAuthHeaders() });
       } catch {}
     }
     clearClientToken(state.shareToken);
@@ -1408,6 +1437,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       dom.lightboxEditBtn.classList.toggle('hidden', !canEdit);
     }
 
+    dom.lightboxImage.onload = () => {
+      applyLightboxRotation();
+    };
     dom.lightboxImage.onerror = () => {
       showToast('error', 'File non visualizzabile', `"${photo.originalName || 'Immagine'}" risulta corrotto o in un formato non leggibile dal browser.`);
     };
@@ -1432,7 +1464,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function applyLightboxRotation() {
-    dom.lightboxImage.style.transform = `rotate(${state.lightboxRotation}deg)`;
+    const isSideways = Math.abs(state.lightboxRotation) % 180 !== 0;
+    dom.lightboxImage.classList.toggle('is-rotated-sideways', isSideways);
+    if (!isSideways) {
+      dom.lightboxImage.style.transform = state.lightboxRotation === 0 ? 'none' : `rotate(${state.lightboxRotation}deg)`;
+      return;
+    }
+
+    const w = dom.lightboxImage.offsetWidth;
+    const h = dom.lightboxImage.offsetHeight;
+    const wrapW = dom.lightboxImgWrapper.clientWidth * 0.92;
+    const wrapH = dom.lightboxImgWrapper.clientHeight * 0.92;
+    if (w > 0 && h > 0 && wrapW > 0 && wrapH > 0) {
+      const fitScale = Math.min(wrapW / h, wrapH / w);
+      dom.lightboxImage.style.transform = `rotate(${state.lightboxRotation}deg) scale(${fitScale.toFixed(4)})`;
+    } else {
+      dom.lightboxImage.style.transform = `rotate(${state.lightboxRotation}deg)`;
+    }
   }
 
   function rotateLightboxPhoto(delta) {
@@ -1490,23 +1538,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       ctx.rotate((rot * Math.PI) / 180);
       ctx.drawImage(tempImg, -tempImg.naturalWidth / 2, -tempImg.naturalHeight / 2);
 
-      const link = document.createElement('a');
-      link.download = `ruotata_${photo.originalName || 'foto.jpg'}`;
-      try {
-        link.href = tempCanvas.toDataURL('image/jpeg', 0.95);
-      } catch {
-        showToast('error', 'Download Bloccato', 'Impossibile esportare la versione ruotata.');
-        return;
-      }
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      showToast('success', 'Download Avviato', `Scaricata versione ruotata di "${photo.originalName}".`);
+      const exportMime = ['image/png', 'image/webp'].includes(photo.mimeType)
+        ? photo.mimeType
+        : 'image/jpeg';
+
+      tempCanvas.toBlob((blob) => {
+        if (!blob) {
+          showToast('error', 'Download Bloccato', 'Impossibile esportare la versione ruotata.');
+          return;
+        }
+        const objUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `ruotata_${photo.originalName || 'foto.jpg'}`;
+        link.href = objUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
+        showToast('success', 'Download Avviato', `Scaricata versione ruotata di "${photo.originalName}".`);
+      }, exportMime, 0.94);
     };
     tempImg.onerror = () => {
       showToast('error', 'Errore Download', 'Impossibile scaricare l\'immagine ruotata.');
     };
-    tempImg.src = sanitizeMediaUrl(buildMediaUrl(photo.driveFileId));
+    tempImg.src = sanitizeMediaUrl(buildMediaUrl(photo.driveFileId, { version: photo.updatedAt }));
   }
 
   function closeLightbox() {
@@ -1517,7 +1572,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (state.isLightboxFullscreen) {
       toggleLightboxFullscreen();
     }
+    dom.lightboxImage.onload = null;
     dom.lightboxImage.onerror = null;
+    dom.lightboxImage.classList.remove('is-rotated-sideways');
     dom.lightboxImage.removeAttribute('src');
     dom.lightboxImage.style.transform = 'none';
   }
@@ -1539,6 +1596,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     dom.lightboxCardContainer.classList.toggle('fullscreen-mode', isNowFullscreen);
     dom.iconEnterFullscreen.classList.toggle('hidden', isNowFullscreen);
     dom.iconExitFullscreen.classList.toggle('hidden', !isNowFullscreen);
+    if (!dom.modalLightbox.classList.contains('hidden')) {
+      requestAnimationFrame(() => applyLightboxRotation());
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    if (!dom.modalLightbox.classList.contains('hidden')) {
+      applyLightboxRotation();
+    }
   });
 
   if (dom.lightboxEditBtn) {
@@ -1553,9 +1619,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   // =========================================================================
   // PALETTE EDITOR FOTOGRAFICO (SOLO ADMIN - CANVAS 2D)
   // =========================================================================
+  const EDITOR_PREVIEW_MAX_SIDE = 1600;
+  const NETLIFY_SAFE_UPLOAD_BYTES = Math.floor(5.5 * 1024 * 1024);
+
   const photoEditor = {
     activePhoto: null,
     imageObj: null,
+    previewSource: null,
+    previewScale: 1,
+    loadSeq: 0,
+    renderRafId: null,
     rotation: 0,
     flipH: 1,
     flipV: 1,
@@ -1596,27 +1669,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       dom.sliderBrightness.addEventListener('input', (e) => {
         this.brightness = Number(e.target.value);
         dom.valBrightness.textContent = `${this.brightness}%`;
-        this.render();
+        this.scheduleRender();
       });
       dom.sliderContrast.addEventListener('input', (e) => {
         this.contrast = Number(e.target.value);
         dom.valContrast.textContent = `${this.contrast}%`;
-        this.render();
+        this.scheduleRender();
       });
       dom.sliderSaturation.addEventListener('input', (e) => {
         this.saturation = Number(e.target.value);
         dom.valSaturation.textContent = `${this.saturation}%`;
-        this.render();
+        this.scheduleRender();
       });
       dom.sliderSepia.addEventListener('input', (e) => {
         this.sepia = Number(e.target.value);
         dom.valSepia.textContent = `${this.sepia}%`;
-        this.render();
+        this.scheduleRender();
       });
       dom.sliderBlur.addEventListener('input', (e) => {
         this.blur = Number(e.target.value);
         dom.valBlur.textContent = `${this.blur}px`;
-        this.render();
+        this.scheduleRender();
       });
 
       document.querySelectorAll('#modal-photo-editor .btn-preset').forEach(btn => {
@@ -1655,6 +1728,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     },
 
     close() {
+      if (this.renderRafId) {
+        cancelAnimationFrame(this.renderRafId);
+        this.renderRafId = null;
+      }
+      this.previewSource = null;
       dom.modalPhotoEditor.classList.add('hidden');
     },
 
@@ -1669,9 +1747,32 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (selectedId) dom.editorPhotoSelect.value = selectedId;
     },
 
+    buildScaledSource(img, maxSide) {
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
+      const longest = Math.max(w, h);
+      if (!maxSide || longest <= maxSide) {
+        return { source: img, scale: 1 };
+      }
+      const scale = maxSide / longest;
+      const scaledCanvas = document.createElement('canvas');
+      scaledCanvas.width = Math.max(1, Math.round(w * scale));
+      scaledCanvas.height = Math.max(1, Math.round(h * scale));
+      const sctx = scaledCanvas.getContext('2d');
+      sctx.drawImage(img, 0, 0, scaledCanvas.width, scaledCanvas.height);
+      return { source: scaledCanvas, scale };
+    },
+
     loadPhoto(photo) {
+      const seq = ++this.loadSeq;
+      if (this.renderRafId) {
+        cancelAnimationFrame(this.renderRafId);
+        this.renderRafId = null;
+      }
       this.activePhoto = photo;
       this.imageObj = null;
+      this.previewSource = null;
+      this.previewScale = 1;
       dom.editorPhotoLabel.textContent = `Caricamento di "${photo.originalName}"...`;
 
       const ctx = dom.editorCanvas.getContext('2d');
@@ -1680,12 +1781,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
+        if (seq !== this.loadSeq) return;
         this.imageObj = img;
+        const scaled = this.buildScaledSource(img, EDITOR_PREVIEW_MAX_SIDE);
+        this.previewSource = scaled.source;
+        this.previewScale = scaled.scale;
         this.resetAdjustments();
         this.render();
         dom.editorPhotoLabel.textContent = `Modifica: ${photo.originalName} (${img.naturalWidth}×${img.naturalHeight}px)`;
       };
       img.onerror = () => {
+        if (seq !== this.loadSeq) return;
         dom.editorPhotoLabel.textContent = `Impossibile decodificare "${photo.originalName}"`;
         showToast('error', 'File non modificabile', `"${photo.originalName}" risulta corrotto o illeggibile.`);
       };
@@ -1748,47 +1854,82 @@ document.addEventListener('DOMContentLoaded', async () => {
       this.render();
     },
 
-    render() {
-      if (!this.imageObj) return;
-      const canvas = dom.editorCanvas;
-      const ctx = canvas.getContext('2d');
-      const img = this.imageObj;
+    scheduleRender() {
+      if (this.renderRafId !== null) return;
+      this.renderRafId = requestAnimationFrame(() => {
+        this.renderRafId = null;
+        this.render();
+      });
+    },
 
+    drawToCanvas(canvas, source, blurScale = 1) {
+      const ctx = canvas.getContext('2d');
+      const srcW = source.naturalWidth || source.width;
+      const srcH = source.naturalHeight || source.height;
       const isSideways = (Math.abs(this.rotation) % 180 !== 0);
-      canvas.width = isSideways ? img.naturalHeight : img.naturalWidth;
-      canvas.height = isSideways ? img.naturalWidth : img.naturalHeight;
+      canvas.width = isSideways ? srcH : srcW;
+      canvas.height = isSideways ? srcW : srcH;
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
       ctx.translate(canvas.width / 2, canvas.height / 2);
       ctx.rotate((this.rotation * Math.PI) / 180);
       ctx.scale(this.flipH, this.flipV);
-      ctx.filter = `brightness(${this.brightness}%) contrast(${this.contrast}%) saturate(${this.saturation}%) sepia(${this.sepia}%) blur(${this.blur}px)`;
-      ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+      if ('filter' in ctx) {
+        const scaledBlur = Math.max(0, Number((this.blur * blurScale).toFixed(2)));
+        ctx.filter = `brightness(${this.brightness}%) contrast(${this.contrast}%) saturate(${this.saturation}%) sepia(${this.sepia}%) blur(${scaledBlur}px)`;
+      }
+      ctx.drawImage(source, -srcW / 2, -srcH / 2);
       ctx.restore();
     },
 
-    exportDataUrl() {
-      if (!this.activePhoto || !this.imageObj) return null;
-      const exportMime = ['image/png', 'image/webp'].includes(this.activePhoto.mimeType)
-        ? this.activePhoto.mimeType
-        : 'image/jpeg';
-      return dom.editorCanvas.toDataURL(exportMime, 0.92);
+    render() {
+      const src = this.previewSource || this.imageObj;
+      if (!src) return;
+      this.drawToCanvas(dom.editorCanvas, src, this.previewScale || 1);
     },
 
-    downloadCopy() {
+    getPreferredExportMime() {
+      if (!this.activePhoto) return 'image/jpeg';
+      return ['image/png', 'image/webp'].includes(this.activePhoto.mimeType)
+        ? this.activePhoto.mimeType
+        : 'image/jpeg';
+    },
+
+    async exportBlob({ mimeType = null, quality = 0.92, maxSide = 0 } = {}) {
+      if (!this.activePhoto || !this.imageObj) return null;
+      const targetMime = mimeType || this.getPreferredExportMime();
+      const { source, scale } = this.buildScaledSource(this.imageObj, maxSide);
+      const exportCanvas = document.createElement('canvas');
+      this.drawToCanvas(exportCanvas, source, scale);
+
+      return new Promise((resolve, reject) => {
+        exportCanvas.toBlob(
+          (blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('Impossibile generare il file immagine esportato.'));
+          },
+          targetMime,
+          quality
+        );
+      });
+    },
+
+    async downloadCopy() {
       if (!this.activePhoto || !this.imageObj) {
         showToast('error', 'Nessuna Foto', 'Carica prima una foto valida nell\'editor.');
         return;
       }
       try {
-        const dataUrl = this.exportDataUrl();
+        const blob = await this.exportBlob({ quality: 0.92 });
+        const objUrl = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.download = `modificata_${this.activePhoto.originalName || 'foto.jpg'}`;
-        link.href = dataUrl;
+        link.href = objUrl;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
         showToast('success', 'Copia Scaricata', `"${link.download}" salvata sul dispositivo.`);
       } catch (err) {
         showToast('error', 'Errore Esportazione', err.message || 'Impossibile esportare l\'immagine.');
@@ -1803,14 +1944,44 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       setButtonLoading(dom.btnSaveEditedPhoto, true);
       try {
-        const base64 = this.exportDataUrl();
+        const preferredMime = this.getPreferredExportMime();
+        let blob = await this.exportBlob({ mimeType: preferredMime, quality: 0.92 });
+
+        if (state.runtime === 'netlify' && blob.size > NETLIFY_SAFE_UPLOAD_BYTES) {
+          if (preferredMime !== 'image/png') {
+            for (const q of [0.84, 0.75]) {
+              const smaller = await this.exportBlob({ mimeType: preferredMime, quality: q });
+              if (smaller.size <= blob.size) blob = smaller;
+              if (blob.size <= NETLIFY_SAFE_UPLOAD_BYTES) break;
+            }
+          }
+
+          if (blob.size > NETLIFY_SAFE_UPLOAD_BYTES) {
+            const mbSize = (blob.size / (1024 * 1024)).toFixed(1);
+            const confirmed = window.confirm(
+              `Questa foto esportata pesa ${mbSize} MB e supera il limite di ~6 MB di Netlify Functions.\n\n` +
+              'Vuoi ridimensionarla automaticamente (max 2800px, JPEG) per salvarla su Google Drive?\n' +
+              'Premi Annulla per usare invece "Scarica Copia" alla risoluzione originale.'
+            );
+            if (!confirmed) return;
+
+            blob = await this.exportBlob({ mimeType: 'image/jpeg', quality: 0.88, maxSide: 2800 });
+            if (blob.size > NETLIFY_SAFE_UPLOAD_BYTES) {
+              blob = await this.exportBlob({ mimeType: 'image/jpeg', quality: 0.82, maxSide: 2200 });
+            }
+            if (blob.size > NETLIFY_SAFE_UPLOAD_BYTES) {
+              throw new Error('La foto resta oltre il limite di 6 MB di Netlify. Usa "Scarica Copia".');
+            }
+          }
+        }
+
         const res = await fetch(`/api/admin/photos/${encodeURIComponent(this.activePhoto.id)}/save`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': blob.type || preferredMime,
             ...getAuthHeaders()
           },
-          body: JSON.stringify({ base64 })
+          body: blob
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Errore salvataggio su Google Drive.');

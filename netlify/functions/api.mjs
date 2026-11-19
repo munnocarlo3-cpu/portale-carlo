@@ -46,15 +46,16 @@ export async function handleNetlifyRequest(req, context = {}, overrides = {}) {
       headers[key.toLowerCase()] = value;
     });
 
-    const secHeaders = getSecurityHeaders(headers['origin'], config.port, config.publicBaseUrl);
+    const urlObj = new URL(req.url);
+    const forwardedProto = String(headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase();
+    const protocol = forwardedProto || urlObj.protocol.replace(':', '') || 'https';
+    const isHttps = protocol === 'https';
+    const secHeaders = getSecurityHeaders(headers['origin'], config.port, config.publicBaseUrl, { isHttps });
 
     if (req.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: secHeaders });
     }
 
-    const urlObj = new URL(req.url);
-    const forwardedProto = String(headers['x-forwarded-proto'] || '').split(',')[0].trim();
-    const protocol = forwardedProto || urlObj.protocol.replace(':', '') || 'https';
     const host = headers['x-forwarded-host'] || headers['host'] || urlObj.host;
 
     const result = await router.handle({
@@ -68,13 +69,32 @@ export async function handleNetlifyRequest(req, context = {}, overrides = {}) {
       readJsonBody: async (maxBytes = 1024 * 1024) => {
         const raw = await req.text();
         if (Buffer.byteLength(raw, 'utf8') > maxBytes) {
-          throw new Error('Richiesta troppo grande');
+          const err = new Error('Richiesta troppo grande');
+          err.status = 413;
+          throw err;
         }
         try {
           return raw ? JSON.parse(raw) : {};
         } catch {
-          throw new Error('JSON non valido');
+          const err = new Error('JSON non valido');
+          err.status = 400;
+          throw err;
         }
+      },
+      readBinaryBody: async (maxBytes = 25 * 1024 * 1024) => {
+        const contentLength = Number(headers['content-length'] || 0);
+        if (contentLength > maxBytes) {
+          const err = new Error('Richiesta troppo grande');
+          err.status = 413;
+          throw err;
+        }
+        const buf = Buffer.from(await req.arrayBuffer());
+        if (buf.length > maxBytes) {
+          const err = new Error('Richiesta troppo grande');
+          err.status = 413;
+          throw err;
+        }
+        return buf;
       }
     });
 
@@ -88,10 +108,17 @@ export async function handleNetlifyRequest(req, context = {}, overrides = {}) {
       });
     }
 
-    const finalHeaders = {
-      ...secHeaders,
-      ...(result.headers || {})
-    };
+    const responseHeaders = new Headers();
+    for (const [key, value] of Object.entries({ ...secHeaders, ...(result.headers || {}) })) {
+      if (value === undefined || value === null) continue;
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          responseHeaders.append(key, String(item));
+        }
+      } else {
+        responseHeaders.set(key, String(value));
+      }
+    }
 
     if (result.stream) {
       const webStream =
@@ -100,13 +127,14 @@ export async function handleNetlifyRequest(req, context = {}, overrides = {}) {
           : Readable.toWeb(result.stream);
       return new Response(webStream, {
         status: result.status,
-        headers: finalHeaders
+        headers: responseHeaders
       });
     }
 
-    return new Response(result.body, {
+    const responseBody = [204, 205, 304].includes(result.status) ? null : result.body;
+    return new Response(responseBody, {
       status: result.status,
-      headers: finalHeaders
+      headers: responseHeaders
     });
   } catch (err) {
     console.error('[NETLIFY_API_ERROR]', err);

@@ -2350,6 +2350,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
   max-height: calc(100vh - 140px);
 }
 
+.lightbox-img-wrapper img.is-rotated-sideways {
+  transform-origin: center center;
+}
+
 /* Frecce di navigazione foto precedente / successiva */
 .lightbox-nav-btn {
   position: absolute;
@@ -2656,8 +2660,25 @@ input[type="range"]::-webkit-slider-thumb:hover {
   transition: all var(--transition-fast);
 }
 
-.btn-album-action:hover {
+.btn-album-action:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.btn-album-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-album-action.btn-open-lightbox {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.38);
+  color: #a7f3d0;
+}
+
+.btn-album-action.btn-open-lightbox:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.3);
+  border-color: rgba(16, 185, 129, 0.65);
   color: #fff;
 }
 
