@@ -133,6 +133,15 @@ test('Google Drive service skips redundant metadata fetch and parallelizes folde
   });
   assert.equal(thumbFallback.isThumbnail, true);
   assert.equal(calls.filter(c => c.includes('fields=')).length, 1);
+  assert.ok(calls.some(c => c.includes('fresh-thumb=s640')));
+
+  calls.length = 0;
+  const previewStream = await drive.openMediaStream('file_1', {
+    preview: true,
+    photoMeta: { originalName: 'img.jpg', mimeType: 'image/jpeg', thumbnailLink: 'https://lh3.googleusercontent.com/fresh-thumb=s220' }
+  });
+  assert.equal(previewStream.isThumbnail, true);
+  assert.ok(calls.some(c => c.includes('fresh-thumb=s1600')));
 });
 
 test('Media proxy authorization matrix, thumb disk cache, ETag 304, Drive relink, and binary photo save', async () => {
@@ -199,14 +208,15 @@ test('Media proxy authorization matrix, thumb disk cache, ETag 304, Drive relink
     const mockDrive = {
       isConfigured: () => true,
       async listDriveAlbumsAndPhotos() { return driveFolders; },
-      async openMediaStream(driveFileId, { thumb }) {
+      async openMediaStream(driveFileId, { thumb, preview }) {
         openStreamCalls += 1;
+        const isScaled = Boolean(thumb || preview);
         return {
-          stream: Readable.from(thumb ? VALID_JPEG_BYTES : VALID_PNG_BYTES),
-          mimeType: thumb ? 'image/jpeg' : 'image/png',
-          size: thumb ? VALID_JPEG_BYTES.length : VALID_PNG_BYTES.length,
+          stream: Readable.from(isScaled ? VALID_JPEG_BYTES : VALID_PNG_BYTES),
+          mimeType: isScaled ? 'image/jpeg' : 'image/png',
+          size: isScaled ? VALID_JPEG_BYTES.length : VALID_PNG_BYTES.length,
           filename: `${driveFileId}.jpg`,
-          isThumbnail: Boolean(thumb)
+          isThumbnail: isScaled
         };
       },
       async updateMediaContent(driveFileId, buffer, mimeType) {
@@ -279,6 +289,16 @@ test('Media proxy authorization matrix, thumb disk cache, ETag 304, Drive relink
     const tDisk = await coldRouter.handle(makeReq('GET', '/api/media/drv_a1', { search: '?thumb=1', headers: adminAuth }));
     assert.equal(tDisk.status, 200);
     assert.equal(openStreamCalls, 1);
+
+    // Preview (?preview=1) uses its own ETag and caches separately from ?thumb=1
+    const p1 = await coldRouter.handle(makeReq('GET', '/api/media/drv_a1', { search: '?preview=1', headers: adminAuth }));
+    assert.equal(p1.status, 200);
+    assert.match(p1.headers.ETag, /:preview:/);
+    assert.equal(openStreamCalls, 2);
+    await readStreamToBuffer(p1.stream);
+    const p2 = await coldRouter.handle(makeReq('GET', '/api/media/drv_a1', { search: '?preview=1', headers: adminAuth }));
+    assert.equal(p2.status, 200);
+    assert.equal(openStreamCalls, 2);
 
     // Relink 1-to-1 when folder recreated on Drive; keep unchanged photo updatedAt stable
     await new Promise(r => setTimeout(r, 15));

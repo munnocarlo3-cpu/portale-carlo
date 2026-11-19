@@ -216,6 +216,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Lightbox
     modalLightbox: document.getElementById('modal-lightbox'),
     lightboxCardContainer: document.getElementById('lightbox-card-container'),
+    lightboxImgWrapper: document.getElementById('lightbox-img-wrapper'),
     lightboxImage: document.getElementById('lightbox-image'),
     lightboxVideo: document.getElementById('lightbox-video'),
     lightboxFilename: document.getElementById('lightbox-filename'),
@@ -280,14 +281,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     return '';
   }
 
-  function buildMediaUrl(driveFileId, { thumb = false, download = false, version = '' } = {}) {
+  function buildMediaUrl(driveFileId, { thumb = false, preview = false, download = false, version = '' } = {}) {
     if (!driveFileId) return '';
     const params = new URLSearchParams();
     if (thumb) params.set('thumb', '1');
+    else if (preview) params.set('preview', '1');
     if (download) params.set('download', '1');
     if (version) params.set('v', String(version));
     const qs = params.toString();
     return `/api/media/${encodeURIComponent(driveFileId)}${qs ? '?' + qs : ''}`;
+  }
+
+  const preloadedUrls = new Set();
+  function preloadImageUrl(url) {
+    const safeUrl = sanitizeMediaUrl(url);
+    if (!safeUrl || preloadedUrls.has(safeUrl)) return;
+    if (preloadedUrls.size > 120) preloadedUrls.clear();
+    preloadedUrls.add(safeUrl);
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = safeUrl;
   }
 
   function showToast(type, title, message, duration = 4200) {
@@ -416,7 +429,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             this.playlist = items.map(item => ({
               id: item.driveFileId,
               originalName: item.albumName ? `${item.albumName} • ${item.originalName}` : item.originalName,
-              url: buildMediaUrl(item.driveFileId)
+              url: buildMediaUrl(item.driveFileId, { preview: true, version: item.updatedAt || '' })
             }));
             this.showSlide(0);
             return;
@@ -443,6 +456,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       this.activeLayer = this.activeLayer === 1 ? 2 : 1;
       dom.bgCurrentName.textContent = item.originalName || 'Sfondo Dinamico';
+
+      if (this.playlist.length > 1) {
+        const nextItem = this.playlist[(this.currentIndex + 1) % this.playlist.length];
+        if (nextItem?.url) preloadImageUrl(nextItem.url);
+      }
     },
 
     next() {
@@ -757,9 +775,15 @@ document.addEventListener('DOMContentLoaded', async () => {
           const imgs = previewCandidates.map((photo, idx) => {
             const img = document.createElement('img');
             img.className = `album-slide-img ${idx === 0 ? 'active' : ''}`;
-            img.src = sanitizeMediaUrl(buildMediaUrl(photo.driveFileId, { thumb: true, version: photo.updatedAt }));
+            const thumbUrl = sanitizeMediaUrl(buildMediaUrl(photo.driveFileId, { thumb: true, version: photo.updatedAt }));
+            if (idx === 0) {
+              img.src = thumbUrl;
+            } else {
+              img.dataset.src = thumbUrl;
+            }
             img.alt = photo.originalName || '';
             img.loading = 'lazy';
+            img.decoding = 'async';
             img.onerror = () => {
               img.style.display = 'none';
             };
@@ -773,6 +797,10 @@ document.addEventListener('DOMContentLoaded', async () => {
               next() {
                 imgs[cur].classList.remove('active');
                 cur = (cur + 1) % imgs.length;
+                if (imgs[cur].dataset.src) {
+                  imgs[cur].src = imgs[cur].dataset.src;
+                  delete imgs[cur].dataset.src;
+                }
                 imgs[cur].classList.add('active');
               }
             });
@@ -849,9 +877,71 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function renderAdminPhotoGrid() {
-    dom.adminGalleryGrid.innerHTML = '';
+  const galleryObservers = new WeakMap();
+  const GALLERY_BATCH_SIZE = 40;
 
+  function renderGalleryGridProgressive(gridEl, items, buildCardFn) {
+    const prevObserver = galleryObservers.get(gridEl);
+    if (prevObserver) {
+      prevObserver.disconnect();
+      galleryObservers.delete(gridEl);
+    }
+    gridEl.innerHTML = '';
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    let rendered = 0;
+    let sentinel = null;
+
+    function appendNextBatch() {
+      const end = Math.min(rendered + GALLERY_BATCH_SIZE, items.length);
+      const frag = document.createDocumentFragment();
+      for (let i = rendered; i < end; i++) {
+        frag.appendChild(buildCardFn(items[i]));
+      }
+      rendered = end;
+
+      if (sentinel && sentinel.parentNode === gridEl) {
+        gridEl.insertBefore(frag, sentinel);
+      } else {
+        gridEl.appendChild(frag);
+      }
+
+      if (rendered >= items.length) {
+        const activeObs = galleryObservers.get(gridEl);
+        if (activeObs) {
+          activeObs.disconnect();
+          galleryObservers.delete(gridEl);
+        }
+        if (sentinel && sentinel.parentNode) sentinel.remove();
+      }
+    }
+
+    appendNextBatch();
+
+    if (rendered < items.length) {
+      if (typeof IntersectionObserver === 'function') {
+        sentinel = document.createElement('div');
+        sentinel.className = 'gallery-scroll-sentinel';
+        sentinel.setAttribute('aria-hidden', 'true');
+        gridEl.appendChild(sentinel);
+
+        const obs = new IntersectionObserver(
+          (entries) => {
+            if (entries.some(e => e.isIntersecting)) {
+              appendNextBatch();
+            }
+          },
+          { rootMargin: '400px 0px' }
+        );
+        galleryObservers.set(gridEl, obs);
+        obs.observe(sentinel);
+      } else {
+        while (rendered < items.length) appendNextBatch();
+      }
+    }
+  }
+
+  function renderAdminPhotoGrid() {
     const activeAlbum = state.selectedAlbumId
       ? state.albums.find(a => a.id === state.selectedAlbumId)
       : null;
@@ -873,6 +963,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (filteredPhotos.length === 0) {
+      renderGalleryGridProgressive(dom.adminGalleryGrid, [], () => document.createElement('div'));
       dom.adminGalleryEmpty.classList.remove('hidden');
       return;
     }
@@ -880,14 +971,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const albumNameById = new Map(state.albums.map(a => [a.id, a.name]));
 
-    filteredPhotos.forEach(photo => {
-      const card = buildPhotoCardElement(photo, {
+    renderGalleryGridProgressive(dom.adminGalleryGrid, filteredPhotos, (photo) =>
+      buildPhotoCardElement(photo, {
         albumLabel: albumNameById.get(photo.albumId) || '',
         onOpen: () => openLightbox(photo, filteredPhotos),
         onEdit: () => photoEditor.open(photo)
-      });
-      dom.adminGalleryGrid.appendChild(card);
-    });
+      })
+    );
   }
 
   function buildPhotoCardElement(photo, { albumLabel = '', onOpen, onEdit = null }) {
@@ -926,8 +1016,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>';
 
     card.innerHTML = `
-      <div class="photo-thumb-wrap">
-        ${canShowThumbImg ? `<img src="${escapeHtml(thumbUrl)}" alt="${escapeHtml(photo.originalName)}" loading="lazy">` : ''}
+      <div class="photo-thumb-wrap${canShowThumbImg ? ' is-loading' : ''}">
+        ${canShowThumbImg ? `<img src="${escapeHtml(thumbUrl)}" alt="${escapeHtml(photo.originalName)}" loading="lazy" decoding="async">` : ''}
         ${fallbackHtml}
         ${isVideo ? `
           <span class="video-badge-pill">
@@ -958,16 +1048,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
     `;
 
+    const thumbWrap = card.querySelector('.photo-thumb-wrap');
     const thumbImg = card.querySelector('.photo-thumb-wrap img');
     const brokenFallback = card.querySelector('.photo-broken-fallback');
     if (thumbImg) {
+      const markThumbLoaded = () => {
+        thumbWrap.classList.remove('is-loading');
+        thumbImg.classList.add('is-loaded');
+      };
+      if (thumbImg.complete && thumbImg.naturalWidth > 0) {
+        markThumbLoaded();
+      } else {
+        thumbImg.onload = markThumbLoaded;
+      }
       thumbImg.onerror = () => {
+        thumbWrap.classList.remove('is-loading');
         thumbImg.classList.add('hidden');
         brokenFallback.classList.remove('hidden');
       };
     }
 
-    card.querySelector('.photo-thumb-wrap').addEventListener('click', onOpen);
+    thumbWrap.addEventListener('click', onOpen);
     const editBtn = card.querySelector('.edit-action');
     if (editBtn && onEdit) {
       editBtn.addEventListener('click', (e) => {
@@ -1433,24 +1534,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function renderClientPhotoGrid() {
-    dom.clientGalleryGrid.innerHTML = '';
-
     if (dom.btnClientSlideshowOpen) {
       dom.btnClientSlideshowOpen.classList.toggle('hidden', state.clientPhotos.length === 0);
     }
 
     if (state.clientPhotos.length === 0) {
+      renderGalleryGridProgressive(dom.clientGalleryGrid, [], () => document.createElement('div'));
       dom.clientGalleryEmpty.classList.remove('hidden');
       return;
     }
     dom.clientGalleryEmpty.classList.add('hidden');
 
-    state.clientPhotos.forEach(photo => {
-      const card = buildPhotoCardElement(photo, {
+    renderGalleryGridProgressive(dom.clientGalleryGrid, state.clientPhotos, (photo) =>
+      buildPhotoCardElement(photo, {
         onOpen: () => openLightbox(photo, state.clientPhotos)
-      });
-      dom.clientGalleryGrid.appendChild(card);
-    });
+      })
+    );
   }
 
   if (dom.btnClientSlideshowOpen) {
@@ -1520,6 +1619,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     dom.lightboxVideo.classList.add('hidden');
   }
 
+  function preloadLightboxNeighbors() {
+    const list = state.lightboxPhotosList;
+    if (!Array.isArray(list) || list.length <= 1) return;
+    const neighborIndices = [
+      (state.lightboxCurrentIndex + 1) % list.length,
+      (state.lightboxCurrentIndex - 1 + list.length) % list.length
+    ];
+    for (const i of neighborIndices) {
+      const item = list[i];
+      if (!item || isVideoItem(item)) continue;
+      preloadImageUrl(buildMediaUrl(item.driveFileId, { preview: true, version: item.updatedAt }));
+    }
+  }
+
   function updateLightboxView() {
     const photo = state.lightboxPhotosList[state.lightboxCurrentIndex] || state.activeLightboxPhoto;
     if (!photo) return;
@@ -1527,6 +1640,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     state.lightboxRotation = 0;
 
     const isVideo = isVideoItem(photo);
+    const previewUrl = sanitizeMediaUrl(buildMediaUrl(photo.driveFileId, { preview: true, version: photo.updatedAt }));
     const fullUrl = sanitizeMediaUrl(buildMediaUrl(photo.driveFileId, { version: photo.updatedAt }));
     const thumbUrl = sanitizeMediaUrl(buildMediaUrl(photo.driveFileId, { thumb: true, version: photo.updatedAt }));
     const downloadUrl = sanitizeMediaUrl(buildMediaUrl(photo.driveFileId, { download: true, version: photo.updatedAt }));
@@ -1548,6 +1662,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (isVideo) {
+      dom.lightboxImgWrapper?.classList.remove('is-loading');
       dom.lightboxImage.onload = null;
       dom.lightboxImage.onerror = null;
       dom.lightboxImage.classList.remove('is-rotated-sideways');
@@ -1566,14 +1681,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         dom.lightboxVideo.classList.remove('hidden');
       }
     } else {
+      dom.lightboxImgWrapper?.classList.add('is-loading');
       dom.lightboxImage.classList.remove('hidden');
       dom.lightboxImage.onload = () => {
+        dom.lightboxImgWrapper?.classList.remove('is-loading');
         applyLightboxRotation();
       };
       dom.lightboxImage.onerror = () => {
+        dom.lightboxImgWrapper?.classList.remove('is-loading');
         showToast('error', 'File non visualizzabile', `"${photo.originalName || 'Immagine'}" risulta corrotto o in un formato non leggibile dal browser.`);
       };
-      dom.lightboxImage.src = fullUrl;
+      dom.lightboxImage.src = previewUrl || fullUrl;
+      if (dom.lightboxImage.complete && dom.lightboxImage.naturalWidth > 0) {
+        dom.lightboxImgWrapper?.classList.remove('is-loading');
+      }
       dom.lightboxImage.alt = photo.originalName || 'Foto';
       applyLightboxRotation();
     }
@@ -1593,6 +1714,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     dom.lightboxDownloadLink.href = downloadUrl || '#';
     dom.lightboxDownloadLink.download = photo.originalName || (isVideo ? 'video.mp4' : 'foto.jpg');
+
+    preloadLightboxNeighbors();
   }
 
   function applyLightboxRotation() {
@@ -1706,6 +1829,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       toggleLightboxFullscreen();
     }
     resetLightboxVideo();
+    dom.lightboxImgWrapper?.classList.remove('is-loading');
     dom.lightboxImage.onload = null;
     dom.lightboxImage.onerror = null;
     dom.lightboxImage.classList.remove('is-rotated-sideways');
