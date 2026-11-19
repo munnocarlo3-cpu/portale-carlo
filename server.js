@@ -135,6 +135,11 @@ export function createAppServer(options = {}) {
 
         if (result.stream) {
           res.writeHead(result.status, result.headers);
+          res.on('close', () => {
+            if (!res.writableEnded && typeof result.stream.destroy === 'function') {
+              result.stream.destroy();
+            }
+          });
           result.stream.on('error', () => {
             if (!res.headersSent) {
               sendJson(res, 502, { message: 'Errore durante lo streaming da Google Drive.' });

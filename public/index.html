@@ -206,7 +206,7 @@
           <span class="stat-value active-val" id="stat-albums-count">0 album</span>
         </div>
         <div class="stat-box">
-          <span class="stat-label">Foto Sincronizzate</span>
+          <span class="stat-label">Foto &amp; Video</span>
           <span class="stat-value active-val" id="stat-photos-count">0 foto</span>
         </div>
         <div class="stat-box">
@@ -248,7 +248,7 @@
               </svg>
             </div>
             <h4>Nessun album sincronizzato</h4>
-            <p>Clicca su <strong>Sincronizza da Google Drive</strong> per importare le cartelle e le foto dalla tua Root Folder.</p>
+            <p>Clicca su <strong>Sincronizza da Google Drive</strong> per importare le cartelle, le foto e i video dalla tua Root Folder.</p>
           </div>
         </div>
 
@@ -274,8 +274,8 @@
                 <polyline points="21 15 16 10 5 21"/>
               </svg>
             </div>
-            <h4>Nessuna foto da mostrare</h4>
-            <p>Aggiungi immagini nelle sottocartelle su Google Drive ed esegui una nuova sincronizzazione.</p>
+            <h4>Nessun contenuto da mostrare</h4>
+            <p>Aggiungi foto o video nelle sottocartelle su Google Drive ed esegui una nuova sincronizzazione.</p>
           </div>
         </div>
       </div>
@@ -362,7 +362,7 @@
               <h2 id="client-gallery-title">Galleria Foto</h2>
               <span class="dashboard-badge" id="client-gallery-count">0 foto</span>
             </div>
-            <p id="client-gallery-desc">Seleziona una foto per ingrandirla a schermo intero o scaricare il file originale</p>
+            <p id="client-gallery-desc">Seleziona una foto o un video per aprirlo a schermo intero o scaricare il file originale</p>
           </div>
         </div>
 
@@ -391,8 +391,8 @@
             <polyline points="21 15 16 10 5 21"/>
           </svg>
         </div>
-        <h4>Nessuna foto disponibile</h4>
-        <p>Il fotografo non ha ancora pubblicato scatti in questo album.</p>
+        <h4>Nessun contenuto disponibile</h4>
+        <p>Il fotografo non ha ancora pubblicato foto o video in questo album.</p>
       </div>
     </section>
   </main>
@@ -486,7 +486,7 @@
   <!-- =========================================================================
        MODAL LIGHTBOX A SCHERMO INTERO (ADMIN & CLIENTE)
        ========================================================================= -->
-  <div id="modal-lightbox" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Visualizzatore Foto">
+  <div id="modal-lightbox" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Visualizzatore Foto e Video">
     <div class="lightbox-content" id="lightbox-card-container">
       <div class="lightbox-top-toolbar">
         <div class="lightbox-counter-badge" id="lightbox-counter-badge">1 di 1</div>
@@ -518,6 +518,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
         <img id="lightbox-image" src="" alt="Anteprima ingrandita">
+        <video id="lightbox-video" class="hidden" controls playsinline preload="metadata"></video>
         <button type="button" class="lightbox-nav-btn next" id="lightbox-btn-next" title="Foto Successiva (Freccia Destra)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
@@ -542,7 +543,7 @@
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            Scarica Foto
+            <span id="lightbox-download-label">Scarica Foto</span>
           </a>
         </div>
       </div>

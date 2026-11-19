@@ -332,3 +332,158 @@ test('Media proxy authorization matrix, thumb disk cache, ETag 304, Drive relink
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
+
+test('Video sync, slideshow exclusion, byte-range streaming (Node & Netlify), and thumb/editor guards', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'munno-video-'));
+  try {
+    const VIDEO_BYTES = Buffer.from('0123456789abcdef');
+    const seenDriveCalls = [];
+
+    const mockDriveFetch = async (url, options = {}) => {
+      const u = new URL(String(url));
+      seenDriveCalls.push({ url: u.toString(), headers: options.headers || {} });
+      if (u.origin === 'https://oauth2.googleapis.com') {
+        return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }), { status: 200 });
+      }
+      if (u.pathname === '/drive/v3/files' && u.searchParams.get('q')?.includes("'root_vid' in parents")) {
+        return new Response(JSON.stringify({ files: [{ id: 'fld_mix', name: 'Matrimonio' }] }), { status: 200 });
+      }
+      if (u.pathname === '/drive/v3/files') {
+        return new Response(
+          JSON.stringify({
+            files: [
+              { id: 'img_1', name: 'foto.jpg', mimeType: 'image/jpeg', size: '12', thumbnailLink: 'https://lh3.googleusercontent.com/p=s220' },
+              {
+                id: 'vid_1',
+                name: 'clip.mp4',
+                mimeType: 'video/mp4',
+                size: String(VIDEO_BYTES.length),
+                videoMediaMetadata: { width: 1920, height: 1080, durationMillis: '64000' }
+              }
+            ]
+          }),
+          { status: 200 }
+        );
+      }
+      if (u.pathname === '/drive/v3/files/vid_1' && u.searchParams.get('alt') === 'media') {
+        const rangeHdr = options.headers?.Range || '';
+        const match = rangeHdr.match(/^bytes=(\d+)-(\d*)$/);
+        if (match) {
+          const start = Number(match[1]);
+          const end = match[2] ? Math.min(Number(match[2]), VIDEO_BYTES.length - 1) : VIDEO_BYTES.length - 1;
+          const slice = VIDEO_BYTES.subarray(start, end + 1);
+          return new Response(slice, {
+            status: 206,
+            headers: {
+              'content-type': 'video/mp4',
+              'content-length': String(slice.length),
+              'content-range': `bytes ${start}-${end}/${VIDEO_BYTES.length}`,
+              'accept-ranges': 'bytes'
+            }
+          });
+        }
+        return new Response(VIDEO_BYTES, {
+          status: 200,
+          headers: { 'content-type': 'video/mp4', 'content-length': String(VIDEO_BYTES.length), 'accept-ranges': 'bytes' }
+        });
+      }
+      if (u.pathname === '/drive/v3/files/vid_1') {
+        return new Response(JSON.stringify({ id: 'vid_1', name: 'clip.mp4', mimeType: 'video/mp4' }), { status: 200 });
+      }
+      return new Response('Not found', { status: 404 });
+    };
+
+    const env = {
+      SESSION_SECRET: 'v'.repeat(40),
+      ADMIN_EMAIL: 'carlo@munno.it',
+      ADMIN_PASSWORD: 'AdminPassword123!',
+      GOOGLE_SERVICE_ACCOUNT_EMAIL: 'svc@test.iam.gserviceaccount.com',
+      GOOGLE_PRIVATE_KEY: TEST_RSA_PRIVATE_KEY,
+      GOOGLE_DRIVE_ROOT_FOLDER_ID: 'root_vid'
+    };
+    const config = getConfig({ dataDir: tmpDir, env });
+    const store = createStore(config);
+    const drive = createDriveService(config, { fetchImpl: mockDriveFetch });
+    const router = createApiRouter({ config, store, drive });
+    await router.ensureInitialized();
+
+    const adminLogin = await router.handle(
+      makeReq('POST', '/api/admin/login', { body: { email: 'carlo@munno.it', password: 'AdminPassword123!' } })
+    );
+    const adminAuth = { authorization: `Bearer ${JSON.parse(adminLogin.body).token}` };
+
+    // 1. Sync includes video with videoMediaMetadata
+    const syncRes = await router.handle(makeReq('POST', '/api/admin/drive/sync', { headers: adminAuth }));
+    assert.equal(syncRes.status, 200);
+    const syncBody = JSON.parse(syncRes.body);
+    assert.equal(syncBody.stats.totalImages, 1);
+    assert.equal(syncBody.stats.totalVideos, 1);
+    const alb = syncBody.albums[0];
+    const vid = syncBody.photos.find(p => p.driveFileId === 'vid_1');
+    assert.equal(vid.mediaType, 'video');
+    assert.equal(vid.durationMillis, 64000);
+    assert.equal(vid.width, 1920);
+    assert.equal(vid.height, 1080);
+
+    // 2. Enabling Home slideshow on album exposes image only, never the video
+    await router.handle(
+      makeReq('POST', `/api/admin/albums/${alb.id}/slideshow`, {
+        headers: adminAuth,
+        body: { slideshowEnabled: true }
+      })
+    );
+    const slideRes = await router.handle(makeReq('GET', '/api/public/slideshow'));
+    const slideBody = JSON.parse(slideRes.body);
+    assert.equal(slideBody.items.length, 1);
+    assert.equal(slideBody.items[0].driveFileId, 'img_1');
+    assert.equal((await router.handle(makeReq('GET', '/api/media/vid_1'))).status, 401);
+
+    // 3. Video thumbnail fallback does NOT download full video binary (returns 404 cleanly)
+    seenDriveCalls.length = 0;
+    const thumbMiss = await router.handle(
+      makeReq('GET', '/api/media/vid_1', { search: '?thumb=1', headers: adminAuth })
+    );
+    assert.equal(thumbMiss.status, 404);
+    assert.equal(seenDriveCalls.some(c => c.url.includes('alt=media')), false);
+
+    // 4. Byte-range request returns 206 Partial Content via router and Netlify adapter
+    const rangeRes = await router.handle(
+      makeReq('GET', '/api/media/vid_1', { headers: { ...adminAuth, range: 'bytes=0-3' } })
+    );
+    assert.equal(rangeRes.status, 206);
+    assert.equal(rangeRes.headers['Content-Range'], 'bytes 0-3/16');
+    assert.equal(rangeRes.headers['Accept-Ranges'], 'bytes');
+    assert.equal((await readStreamToBuffer(rangeRes.stream)).toString('utf8'), '0123');
+
+    const netlifyRange = await handleNetlifyRequest(
+      new Request('https://example.netlify.app/api/media/vid_1', {
+        headers: { ...adminAuth, range: 'bytes=4-7' }
+      }),
+      {},
+      {
+        env: { ...env, NETLIFY: 'true' },
+        storeDriver: {
+          getArray: (k) => k === 'users' ? store.loadUsers() : k === 'albums' ? store.loadAlbums() : store.loadPhotos(),
+          setArray: (k, d) => k === 'users' ? store.saveUsers(d) : k === 'albums' ? store.saveAlbums(d) : store.savePhotos(d),
+          initIfMissing: async () => {}
+        },
+        driveService: drive,
+        forceNew: true
+      }
+    );
+    assert.equal(netlifyRange.status, 206);
+    assert.equal(netlifyRange.headers.get('content-range'), 'bytes 4-7/16');
+    assert.equal(await netlifyRange.text(), '4567');
+
+    // 5. Photo Editor save rejects videos
+    const editVidRes = await router.handle(
+      makeReq('POST', `/api/admin/photos/${vid.id}/save`, {
+        headers: { ...adminAuth, 'content-type': 'image/png' },
+        binaryBody: VALID_PNG_BYTES
+      })
+    );
+    assert.equal(editVidRes.status, 400);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});

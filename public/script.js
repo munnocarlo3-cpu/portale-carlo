@@ -217,6 +217,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     modalLightbox: document.getElementById('modal-lightbox'),
     lightboxCardContainer: document.getElementById('lightbox-card-container'),
     lightboxImage: document.getElementById('lightbox-image'),
+    lightboxVideo: document.getElementById('lightbox-video'),
     lightboxFilename: document.getElementById('lightbox-filename'),
     lightboxInfo: document.getElementById('lightbox-info'),
     lightboxCounterBadge: document.getElementById('lightbox-counter-badge'),
@@ -229,6 +230,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     lightboxBtnNext: document.getElementById('lightbox-btn-next'),
     lightboxEditBtn: document.getElementById('lightbox-edit-btn'),
     lightboxDownloadLink: document.getElementById('lightbox-download-link'),
+    lightboxDownloadLabel: document.getElementById('lightbox-download-label'),
     btnCloseLightbox: document.getElementById('btn-close-lightbox'),
 
     // Palette Editor Fotografico (Admin)
@@ -326,6 +328,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
   }
 
+  function isVideoItem(item) {
+    if (!item) return false;
+    if (item.mediaType === 'video') return true;
+    return typeof item.mimeType === 'string' && item.mimeType.toLowerCase().startsWith('video/');
+  }
+
+  function formatDuration(durationMillis) {
+    const ms = Number(durationMillis);
+    if (!ms || ms <= 0) return '';
+    const totalSec = Math.round(ms / 1000);
+    const hours = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    const pad = (n) => String(n).padStart(2, '0');
+    return hours > 0 ? `${hours}:${pad(mins)}:${pad(secs)}` : `${mins}:${pad(secs)}`;
+  }
+
+  function formatMediaCounts(items) {
+    const list = Array.isArray(items) ? items : [];
+    let videos = 0;
+    for (const item of list) {
+      if (isVideoItem(item)) videos += 1;
+    }
+    const photos = list.length - videos;
+    if (videos === 0) return `${photos} foto`;
+    if (photos === 0) return `${videos} video`;
+    return `${photos} foto • ${videos} video`;
+  }
+
   function setButtonLoading(btn, isLoading) {
     if (!btn) return;
     btn.classList.toggle('loading', isLoading);
@@ -378,7 +409,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const res = await fetch('/api/public/slideshow');
         if (res.ok) {
           const data = await res.json();
-          const items = Array.isArray(data.items) ? data.items : [];
+          const items = Array.isArray(data.items)
+            ? data.items.filter(item => !isVideoItem(item))
+            : [];
           if (items.length > 0) {
             this.playlist = items.map(item => ({
               id: item.driveFileId,
@@ -614,10 +647,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   function renderAdminDashboard() {
     const sharedCount = state.albums.filter(a => a.shareEnabled).length;
     const slideshowAlbumIds = new Set(state.albums.filter(a => a.slideshowEnabled).map(a => a.id));
-    const slideshowPhotosCount = state.photos.filter(p => slideshowAlbumIds.has(p.albumId)).length;
+    const slideshowPhotosCount = state.photos.filter(
+      p => slideshowAlbumIds.has(p.albumId) && !isVideoItem(p)
+    ).length;
 
     dom.statAlbumsCount.textContent = `${state.albums.length} album`;
-    dom.statPhotosCount.textContent = `${state.photos.length} foto`;
+    dom.statPhotosCount.textContent = formatMediaCounts(state.photos);
     dom.statSharedCount.textContent = `${sharedCount} attivi`;
     dom.statSlideshowCount.textContent = `${slideshowPhotosCount} foto`;
     dom.adminAlbumsBadge.textContent = `${state.albums.length} album`;
@@ -693,36 +728,55 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         const badge = document.createElement('div');
         badge.className = 'album-indicator-badge';
+        const countText = formatMediaCounts(albumPhotos);
         badge.innerHTML = albumPhotos.length > 1
-          ? `<span class="live-dot"></span> <span>${albumPhotos.length} foto</span>`
-          : '<span>1 foto</span>';
+          ? `<span class="live-dot"></span> <span>${escapeHtml(countText)}</span>`
+          : `<span>${escapeHtml(countText)}</span>`;
         preview.appendChild(badge);
 
-        const previewSlice = [...albumPhotos]
-          .sort((a, b) => Number(Boolean(b.hasThumbnail)) - Number(Boolean(a.hasThumbnail)))
+        const previewCandidates = albumPhotos
+          .filter(p => !isVideoItem(p) || p.hasThumbnail)
+          .sort((a, b) => {
+            const imgDiff = Number(!isVideoItem(b)) - Number(!isVideoItem(a));
+            if (imgDiff !== 0) return imgDiff;
+            return Number(Boolean(b.hasThumbnail)) - Number(Boolean(a.hasThumbnail));
+          })
           .slice(0, 6);
-        const imgs = previewSlice.map((photo, idx) => {
-          const img = document.createElement('img');
-          img.className = `album-slide-img ${idx === 0 ? 'active' : ''}`;
-          img.src = sanitizeMediaUrl(buildMediaUrl(photo.driveFileId, { thumb: true, version: photo.updatedAt }));
-          img.alt = photo.originalName || '';
-          img.loading = 'lazy';
-          img.onerror = () => {
-            img.style.display = 'none';
-          };
-          preview.appendChild(img);
-          return img;
-        });
 
-        if (imgs.length > 1) {
-          let cur = 0;
-          controllers.push({
-            next() {
-              imgs[cur].classList.remove('active');
-              cur = (cur + 1) % imgs.length;
-              imgs[cur].classList.add('active');
-            }
+        if (previewCandidates.length === 0) {
+          const videoFallback = document.createElement('div');
+          videoFallback.className = 'album-empty-placeholder';
+          videoFallback.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            <span>${escapeHtml(countText)}</span>
+          `;
+          preview.appendChild(videoFallback);
+        } else {
+          const imgs = previewCandidates.map((photo, idx) => {
+            const img = document.createElement('img');
+            img.className = `album-slide-img ${idx === 0 ? 'active' : ''}`;
+            img.src = sanitizeMediaUrl(buildMediaUrl(photo.driveFileId, { thumb: true, version: photo.updatedAt }));
+            img.alt = photo.originalName || '';
+            img.loading = 'lazy';
+            img.onerror = () => {
+              img.style.display = 'none';
+            };
+            preview.appendChild(img);
+            return img;
           });
+
+          if (imgs.length > 1) {
+            let cur = 0;
+            controllers.push({
+              next() {
+                imgs[cur].classList.remove('active');
+                cur = (cur + 1) % imgs.length;
+                imgs[cur].classList.add('active');
+              }
+            });
+          }
         }
       }
 
@@ -806,8 +860,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       ? state.photos.filter(p => p.albumId === activeAlbum.id)
       : state.photos;
 
-    dom.adminGalleryTitle.textContent = activeAlbum ? `Album: ${activeAlbum.name}` : 'Tutte le foto';
-    dom.adminGalleryCount.textContent = `${filteredPhotos.length} foto`;
+    dom.adminGalleryTitle.textContent = activeAlbum ? `Album: ${activeAlbum.name}` : 'Tutti i contenuti';
+    dom.adminGalleryCount.textContent = formatMediaCounts(filteredPhotos);
 
     if (dom.btnOpenAlbumLightbox) {
       dom.btnOpenAlbumLightbox.classList.toggle('hidden', filteredPhotos.length === 0);
@@ -837,16 +891,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function buildPhotoCardElement(photo, { albumLabel = '', onOpen, onEdit = null }) {
+    const isVideo = isVideoItem(photo);
     const card = document.createElement('div');
-    card.className = 'photo-card';
+    card.className = `photo-card${isVideo ? ' is-video' : ''}`;
 
     const thumbUrl = sanitizeMediaUrl(buildMediaUrl(photo.driveFileId, { thumb: true, version: photo.updatedAt }));
     const downloadUrl = sanitizeMediaUrl(buildMediaUrl(photo.driveFileId, { download: true, version: photo.updatedAt }));
     const formattedDate = photo.uploadedAt ? new Date(photo.uploadedAt).toLocaleDateString('it-IT') : '';
+    const durationLabel = isVideo ? formatDuration(photo.durationMillis) : '';
+    const canShowThumbImg = !isVideo || Boolean(photo.hasThumbnail);
 
-    card.innerHTML = `
-      <div class="photo-thumb-wrap">
-        <img src="${escapeHtml(thumbUrl)}" alt="${escapeHtml(photo.originalName)}" loading="lazy">
+    const fallbackHtml = isVideo
+      ? `
+        <div class="photo-broken-fallback video-placeholder${canShowThumbImg ? ' hidden' : ''}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="2" y="4" width="20" height="16" rx="2"/>
+            <polygon points="10 8.5 16 12 10 15.5 10 8.5" fill="currentColor" stroke="none"/>
+          </svg>
+          <span>${escapeHtml(durationLabel ? `Video • ${durationLabel}` : 'Video')}</span>
+        </div>
+      `
+      : `
         <div class="photo-broken-fallback hidden">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
@@ -854,13 +919,29 @@ document.addEventListener('DOMContentLoaded', async () => {
           </svg>
           <span>Anteprima non disponibile</span>
         </div>
+      `;
+
+    const zoomIconSvg = isVideo
+      ? '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>';
+
+    card.innerHTML = `
+      <div class="photo-thumb-wrap">
+        ${canShowThumbImg ? `<img src="${escapeHtml(thumbUrl)}" alt="${escapeHtml(photo.originalName)}" loading="lazy">` : ''}
+        ${fallbackHtml}
+        ${isVideo ? `
+          <span class="video-badge-pill">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+            <span>${escapeHtml(durationLabel || 'VIDEO')}</span>
+          </span>
+        ` : ''}
         <div class="photo-overlay">
-          ${onEdit ? `
+          ${onEdit && !isVideo ? `
           <button type="button" class="btn-photo-action edit-action" title="Modifica con Palette Editor">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           </button>` : ''}
-          <button type="button" class="btn-photo-action zoom-action" title="Visualizza a schermo intero">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <button type="button" class="btn-photo-action zoom-action" title="${isVideo ? 'Riproduci video' : 'Visualizza a schermo intero'}">
+            ${zoomIconSvg}
           </button>
           <a href="${escapeHtml(downloadUrl)}" download="${escapeHtml(photo.originalName)}" class="btn-photo-action download-action" title="Scarica file originale">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -870,7 +951,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="photo-meta">
         <div class="photo-title" title="${escapeHtml(photo.originalName)}">${escapeHtml(photo.originalName)}</div>
         <div class="photo-subinfo">
-          <span>${escapeHtml(formatFileSize(photo.size))}</span>
+          <span>${escapeHtml(formatFileSize(photo.size))}${durationLabel ? ` • ${escapeHtml(durationLabel)}` : ''}</span>
           <span>${escapeHtml(formattedDate)}</span>
         </div>
         ${albumLabel ? `<span class="photo-album-tag">${escapeHtml(albumLabel)}</span>` : ''}
@@ -879,10 +960,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const thumbImg = card.querySelector('.photo-thumb-wrap img');
     const brokenFallback = card.querySelector('.photo-broken-fallback');
-    thumbImg.onerror = () => {
-      thumbImg.classList.add('hidden');
-      brokenFallback.classList.remove('hidden');
-    };
+    if (thumbImg) {
+      thumbImg.onerror = () => {
+        thumbImg.classList.add('hidden');
+        brokenFallback.classList.remove('hidden');
+      };
+    }
 
     card.querySelector('.photo-thumb-wrap').addEventListener('click', onOpen);
     const editBtn = card.querySelector('.edit-action');
@@ -949,10 +1032,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         await bgManager.refreshFromServer();
 
         const s = data.stats || {};
+        const totalVideos = Number(s.totalVideos) || 0;
+        const videoStatPart = totalVideos > 0 ? ` • Video: ${totalVideos}` : '';
         showToast(
           'success',
           'Drive Sincronizzato!',
-          `Album: +${s.addedAlbums || 0} / agg. ${s.updatedAlbums || 0} / rim. ${s.removedAlbums || 0} • Foto: +${s.addedPhotos || 0} / rim. ${s.removedPhotos || 0}`
+          `Album: +${s.addedAlbums || 0} / agg. ${s.updatedAlbums || 0} / rim. ${s.removedAlbums || 0} • Media: +${s.addedPhotos || 0} / rim. ${s.removedPhotos || 0}${videoStatPart}`
         );
       } catch (err) {
         showToast('error', 'Sincronizzazione Fallita', err.message, 6000);
@@ -1338,8 +1423,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       dom.clientGalleryTitle.textContent = state.clientAlbum?.name || 'Galleria Riservata';
       dom.clientGalleryDesc.textContent =
-        state.clientAlbum?.description || 'Clicca su una foto per aprirla a schermo intero o scaricare il file originale.';
-      dom.clientGalleryCount.textContent = `${state.clientPhotos.length} foto`;
+        state.clientAlbum?.description || 'Clicca su una foto o un video per aprirlo a schermo intero o scaricare il file originale.';
+      dom.clientGalleryCount.textContent = formatMediaCounts(state.clientPhotos);
 
       renderClientPhotoGrid();
     } catch (err) {
@@ -1423,47 +1508,95 @@ document.addEventListener('DOMContentLoaded', async () => {
     dom.modalLightbox.classList.remove('hidden');
   }
 
+  function resetLightboxVideo() {
+    if (!dom.lightboxVideo) return;
+    dom.lightboxVideo.onerror = null;
+    try {
+      dom.lightboxVideo.pause();
+    } catch {}
+    dom.lightboxVideo.removeAttribute('src');
+    dom.lightboxVideo.removeAttribute('poster');
+    dom.lightboxVideo.load();
+    dom.lightboxVideo.classList.add('hidden');
+  }
+
   function updateLightboxView() {
     const photo = state.lightboxPhotosList[state.lightboxCurrentIndex] || state.activeLightboxPhoto;
     if (!photo) return;
     state.activeLightboxPhoto = photo;
     state.lightboxRotation = 0;
 
+    const isVideo = isVideoItem(photo);
     const fullUrl = sanitizeMediaUrl(buildMediaUrl(photo.driveFileId, { version: photo.updatedAt }));
+    const thumbUrl = sanitizeMediaUrl(buildMediaUrl(photo.driveFileId, { thumb: true, version: photo.updatedAt }));
     const downloadUrl = sanitizeMediaUrl(buildMediaUrl(photo.driveFileId, { download: true, version: photo.updatedAt }));
 
+    resetLightboxVideo();
+
+    if (dom.lightboxRotateLeftBtn) {
+      dom.lightboxRotateLeftBtn.classList.toggle('hidden', isVideo);
+    }
+    if (dom.lightboxRotateRightBtn) {
+      dom.lightboxRotateRightBtn.classList.toggle('hidden', isVideo);
+    }
     if (dom.lightboxEditBtn) {
-      const canEdit = state.viewMode === 'admin' && state.role === 'admin';
+      const canEdit = !isVideo && state.viewMode === 'admin' && state.role === 'admin';
       dom.lightboxEditBtn.classList.toggle('hidden', !canEdit);
     }
+    if (dom.lightboxDownloadLabel) {
+      dom.lightboxDownloadLabel.textContent = isVideo ? 'Scarica Video' : 'Scarica Foto';
+    }
 
-    dom.lightboxImage.onload = () => {
+    if (isVideo) {
+      dom.lightboxImage.onload = null;
+      dom.lightboxImage.onerror = null;
+      dom.lightboxImage.classList.remove('is-rotated-sideways');
+      dom.lightboxImage.removeAttribute('src');
+      dom.lightboxImage.style.transform = 'none';
+      dom.lightboxImage.classList.add('hidden');
+
+      if (dom.lightboxVideo) {
+        if (photo.hasThumbnail && thumbUrl) {
+          dom.lightboxVideo.poster = thumbUrl;
+        }
+        dom.lightboxVideo.onerror = () => {
+          showToast('error', 'Video non riproducibile', `"${photo.originalName || 'Video'}" usa un codec non supportato dal browser. Puoi comunque scaricarlo.`);
+        };
+        dom.lightboxVideo.src = fullUrl;
+        dom.lightboxVideo.classList.remove('hidden');
+      }
+    } else {
+      dom.lightboxImage.classList.remove('hidden');
+      dom.lightboxImage.onload = () => {
+        applyLightboxRotation();
+      };
+      dom.lightboxImage.onerror = () => {
+        showToast('error', 'File non visualizzabile', `"${photo.originalName || 'Immagine'}" risulta corrotto o in un formato non leggibile dal browser.`);
+      };
+      dom.lightboxImage.src = fullUrl;
+      dom.lightboxImage.alt = photo.originalName || 'Foto';
       applyLightboxRotation();
-    };
-    dom.lightboxImage.onerror = () => {
-      showToast('error', 'File non visualizzabile', `"${photo.originalName || 'Immagine'}" risulta corrotto o in un formato non leggibile dal browser.`);
-    };
-    dom.lightboxImage.src = fullUrl;
-    dom.lightboxImage.alt = photo.originalName || 'Foto';
-    applyLightboxRotation();
+    }
 
-    dom.lightboxFilename.textContent = photo.originalName || 'foto.jpg';
+    dom.lightboxFilename.textContent = photo.originalName || (isVideo ? 'video.mp4' : 'foto.jpg');
     const albumName =
       state.viewMode === 'client'
         ? (state.clientAlbum?.name || 'Galleria')
         : (state.albums.find(a => a.id === photo.albumId)?.name || 'Album');
     const dateStr = photo.uploadedAt ? new Date(photo.uploadedAt).toLocaleDateString('it-IT') : '';
-    dom.lightboxInfo.textContent = `${formatFileSize(photo.size)} • ${albumName}${dateStr ? ' • ' + dateStr : ''}`;
+    const durationStr = isVideo ? formatDuration(photo.durationMillis) : '';
+    dom.lightboxInfo.textContent = `${formatFileSize(photo.size)}${durationStr ? ' • ' + durationStr : ''} • ${albumName}${dateStr ? ' • ' + dateStr : ''}`;
 
     dom.lightboxCounterBadge.textContent = `${state.lightboxCurrentIndex + 1} di ${state.lightboxPhotosList.length}`;
     dom.lightboxBtnPrev.style.display = state.lightboxPhotosList.length > 1 ? 'flex' : 'none';
     dom.lightboxBtnNext.style.display = state.lightboxPhotosList.length > 1 ? 'flex' : 'none';
 
     dom.lightboxDownloadLink.href = downloadUrl || '#';
-    dom.lightboxDownloadLink.download = photo.originalName || 'foto.jpg';
+    dom.lightboxDownloadLink.download = photo.originalName || (isVideo ? 'video.mp4' : 'foto.jpg');
   }
 
   function applyLightboxRotation() {
+    if (isVideoItem(state.activeLightboxPhoto)) return;
     const isSideways = Math.abs(state.lightboxRotation) % 180 !== 0;
     dom.lightboxImage.classList.toggle('is-rotated-sideways', isSideways);
     if (!isSideways) {
@@ -1518,7 +1651,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function downloadCurrentLightboxPhoto(e) {
     const photo = state.activeLightboxPhoto;
     if (!photo) return;
-    if (state.lightboxRotation === 0) {
+    if (isVideoItem(photo) || state.lightboxRotation === 0) {
       // Lascia procedere il download nativo verso /api/media/:driveFileId?download=1
       return;
     }
@@ -1572,9 +1705,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (state.isLightboxFullscreen) {
       toggleLightboxFullscreen();
     }
+    resetLightboxVideo();
     dom.lightboxImage.onload = null;
     dom.lightboxImage.onerror = null;
     dom.lightboxImage.classList.remove('is-rotated-sideways');
+    dom.lightboxImage.classList.remove('hidden');
     dom.lightboxImage.removeAttribute('src');
     dom.lightboxImage.style.transform = 'none';
   }
@@ -1649,12 +1784,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (dom.btnOpenEditorAdmin) {
         dom.btnOpenEditorAdmin.addEventListener('click', () => {
+          const editablePhotos = state.photos.filter(p => !isVideoItem(p));
           const candidates = state.selectedAlbumId
-            ? state.photos.filter(p => p.albumId === state.selectedAlbumId)
-            : state.photos;
-          const preferred = candidates.find(p => p.hasThumbnail) || candidates[0] || state.photos[0];
+            ? editablePhotos.filter(p => p.albumId === state.selectedAlbumId)
+            : editablePhotos;
+          const preferred = candidates.find(p => p.hasThumbnail) || candidates[0] || editablePhotos[0];
           if (!preferred) {
-            showToast('info', 'Nessuna Foto', 'Sincronizza prima almeno una foto da Google Drive.');
+            showToast('info', 'Nessuna Foto Modificabile', 'L\'editor supporta solo immagini. Sincronizza almeno una foto da Google Drive.');
             return;
           }
           this.open(preferred);
@@ -1721,7 +1857,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     },
 
     open(photo) {
-      if (state.viewMode !== 'admin' || state.role !== 'admin' || !photo) return;
+      if (state.viewMode !== 'admin' || state.role !== 'admin' || !photo || isVideoItem(photo)) return;
       this.populatePhotoSelector(photo.id);
       dom.modalPhotoEditor.classList.remove('hidden');
       this.loadPhoto(photo);
@@ -1739,6 +1875,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     populatePhotoSelector(selectedId) {
       const albumNames = new Map(state.albums.map(a => [a.id, a.name]));
       dom.editorPhotoSelect.innerHTML = state.photos
+        .filter(p => !isVideoItem(p))
         .map(p => {
           const alb = albumNames.get(p.albumId) || 'Album';
           return `<option value="${escapeHtml(p.id)}">${escapeHtml(alb)} — ${escapeHtml(p.originalName)}</option>`;
@@ -2005,10 +2142,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   window.addEventListener('keydown', (e) => {
     if (!dom.modalLightbox.classList.contains('hidden')) {
+      if (e.target === dom.lightboxVideo && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === ' ')) {
+        return;
+      }
       if (e.key === 'ArrowLeft') prevLightboxPhoto();
       else if (e.key === 'ArrowRight') nextLightboxPhoto();
       else if (e.key === 'f' || e.key === 'F') toggleLightboxFullscreen();
-      else if (e.key === 'r' || e.key === 'R') rotateLightboxPhoto(90);
+      else if ((e.key === 'r' || e.key === 'R') && !isVideoItem(state.activeLightboxPhoto)) rotateLightboxPhoto(90);
       else if (e.key === 'Escape') closeLightbox();
       return;
     }

@@ -13,6 +13,11 @@ const {
   hashPassword,
   verifyPassword,
   detectImageFormat,
+  ALLOWED_VIDEO_MIMES,
+  ALLOWED_MEDIA_MIMES,
+  isVideoMime,
+  getMediaType,
+  normalizeByteRangeHeader,
   createLoginRateLimiter,
   getSecurityHeaders,
   CONTENT_SECURITY_POLICY,
@@ -52,6 +57,20 @@ test('Password hashing, magic-byte image detection, and login rate limiter behav
   assert.equal(detectImageFormat(Buffer.from('GIF89a000000', 'ascii'))?.mimeType, 'image/gif');
   assert.equal(detectImageFormat(Buffer.from('RIFF0000WEBP', 'ascii'))?.mimeType, 'image/webp');
   assert.equal(detectImageFormat(Buffer.from('not-an-image-bytes', 'ascii')), null);
+
+  assert.equal(ALLOWED_VIDEO_MIMES.has('video/mp4'), true);
+  assert.equal(ALLOWED_VIDEO_MIMES.has('video/quicktime'), true);
+  assert.equal(ALLOWED_MEDIA_MIMES.has('image/jpeg'), true);
+  assert.equal(ALLOWED_MEDIA_MIMES.has('video/webm'), true);
+  assert.equal(isVideoMime('video/mp4'), true);
+  assert.equal(isVideoMime('image/jpeg'), false);
+  assert.equal(getMediaType('video/mp4'), 'video');
+  assert.equal(getMediaType('image/png'), 'image');
+  assert.equal(normalizeByteRangeHeader('bytes=0-1023'), 'bytes=0-1023');
+  assert.equal(normalizeByteRangeHeader('bytes=500-'), 'bytes=500-');
+  assert.equal(normalizeByteRangeHeader('bytes=200-100'), '');
+  assert.equal(normalizeByteRangeHeader('items=0-10'), '');
+  assert.match(CONTENT_SECURITY_POLICY, /media-src 'self' blob:/);
 
   const limiter = createLoginRateLimiter({ windowMs: 60000, maxAttempts: 3, blockDurationMs: 60000 });
   assert.equal(limiter.check('ip1').allowed, true);
