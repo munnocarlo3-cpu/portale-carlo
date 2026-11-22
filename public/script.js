@@ -96,6 +96,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const CLIENT_SHARE_TOKEN = detectShareTokenFromUrl();
 
+  const nowInit = new Date();
+  const todayIsoInit = `${nowInit.getFullYear()}-${String(nowInit.getMonth() + 1).padStart(2, '0')}-${String(nowInit.getDate()).padStart(2, '0')}`;
+
   // === STATO APPLICAZIONE ===
   const state = {
     viewMode: CLIENT_SHARE_TOKEN ? 'client' : 'admin',
@@ -107,6 +110,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     driveConfigured: false,
     albums: [],
     photos: [],
+    activities: [],
+    calendarYear: nowInit.getFullYear(),
+    calendarMonth: nowInit.getMonth(),
+    calendarSelectedDate: todayIsoInit,
+    calendarFilter: 'all', // 'all' | 'scheduled' | 'in_progress' | 'completed'
+    calendarAgendaMode: 'day', // 'day' | 'upcoming'
+    editingActivityId: null,
+    transactions: [],
+    cashTypeFilter: 'all', // 'all' | 'income' | 'expense' | 'pending'
+    cashPeriodFilter: 'all',
+    cashMethodFilter: 'all',
+    cashSearchQuery: '',
+    editingTxnId: null,
+    txnModalType: 'income',
     selectedAlbumId: null,
     clientAlbum: null,
     clientPhotos: [],
@@ -212,6 +229,92 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnCopyShareLink: document.getElementById('btn-copy-share-link'),
     btnCopyShareBundle: document.getElementById('btn-copy-share-bundle'),
     btnSaveShareConfig: document.getElementById('btn-save-share-config'),
+
+    // Calendario Attività Admin
+    calCountScheduled: document.getElementById('cal-count-scheduled'),
+    calCountInProgress: document.getElementById('cal-count-inprogress'),
+    btnOpenNewActivity: document.getElementById('btn-open-new-activity'),
+    btnCalPrevMonth: document.getElementById('btn-cal-prev-month'),
+    btnCalNextMonth: document.getElementById('btn-cal-next-month'),
+    btnCalToday: document.getElementById('btn-cal-today'),
+    calMonthLabel: document.getElementById('cal-month-label'),
+    calFilterChips: document.getElementById('cal-filter-chips'),
+    calDaysGrid: document.getElementById('cal-days-grid'),
+    btnAgendaDay: document.getElementById('btn-agenda-day'),
+    btnAgendaUpcoming: document.getElementById('btn-agenda-upcoming'),
+    calSelectedDateLabel: document.getElementById('cal-selected-date-label'),
+    calAgendaCount: document.getElementById('cal-agenda-count'),
+    btnAddActivitySelectedDay: document.getElementById('btn-add-activity-selected-day'),
+    calAgendaList: document.getElementById('cal-agenda-list'),
+    calAgendaEmpty: document.getElementById('cal-agenda-empty'),
+    calAgendaEmptyText: document.getElementById('cal-agenda-empty-text'),
+
+    // Modale Attività Calendario
+    modalActivity: document.getElementById('modal-activity'),
+    btnCloseActivityModal: document.getElementById('btn-close-activity-modal'),
+    btnCancelActivityModal: document.getElementById('btn-cancel-activity-modal'),
+    activityModalTitle: document.getElementById('activity-modal-title'),
+    activityModalSubtitle: document.getElementById('activity-modal-subtitle'),
+    formActivity: document.getElementById('form-activity'),
+    activityTitle: document.getElementById('activity-title'),
+    activityTitleError: document.getElementById('activity-title-error'),
+    activityStatus: document.getElementById('activity-status'),
+    activityTime: document.getElementById('activity-time'),
+    activityDate: document.getElementById('activity-date'),
+    activityEndDate: document.getElementById('activity-end-date'),
+    activityDateError: document.getElementById('activity-date-error'),
+    activityClient: document.getElementById('activity-client'),
+    activityLocation: document.getElementById('activity-location'),
+    activityNotes: document.getElementById('activity-notes'),
+    btnDeleteActivity: document.getElementById('btn-delete-activity'),
+    btnSaveActivity: document.getElementById('btn-save-activity'),
+
+    // Gestione Cassa & Contabilità Admin
+    btnOpenCashAdmin: document.getElementById('btn-open-cash-admin'),
+    modalCashManager: document.getElementById('modal-cash-manager'),
+    btnCloseCashManager: document.getElementById('btn-close-cash-manager'),
+    btnExportCashCsv: document.getElementById('btn-export-cash-csv'),
+    btnNewIncome: document.getElementById('btn-new-income'),
+    btnNewExpense: document.getElementById('btn-new-expense'),
+    cashKpiBalance: document.getElementById('cash-kpi-balance'),
+    cashKpiBalanceSub: document.getElementById('cash-kpi-balance-sub'),
+    cashKpiIncome: document.getElementById('cash-kpi-income'),
+    cashKpiIncomeSub: document.getElementById('cash-kpi-income-sub'),
+    cashKpiExpense: document.getElementById('cash-kpi-expense'),
+    cashKpiExpenseSub: document.getElementById('cash-kpi-expense-sub'),
+    cashKpiPending: document.getElementById('cash-kpi-pending'),
+    cashKpiPendingSub: document.getElementById('cash-kpi-pending-sub'),
+    cashTypeChips: document.getElementById('cash-type-chips'),
+    cashPeriodFilter: document.getElementById('cash-period-filter'),
+    cashMethodFilter: document.getElementById('cash-method-filter'),
+    cashSearchInput: document.getElementById('cash-search-input'),
+    cashTable: document.getElementById('cash-table'),
+    cashTableBody: document.getElementById('cash-table-body'),
+    cashTableEmpty: document.getElementById('cash-table-empty'),
+
+    // Modale Movimento Cassa
+    modalTransaction: document.getElementById('modal-transaction'),
+    btnCloseTxnModal: document.getElementById('btn-close-txn-modal'),
+    btnCancelTxnModal: document.getElementById('btn-cancel-txn-modal'),
+    txnModalTitle: document.getElementById('txn-modal-title'),
+    txnModalSubtitle: document.getElementById('txn-modal-subtitle'),
+    formTransaction: document.getElementById('form-transaction'),
+    btnTxnTypeIncome: document.getElementById('btn-txn-type-income'),
+    btnTxnTypeExpense: document.getElementById('btn-txn-type-expense'),
+    txnDescription: document.getElementById('txn-description'),
+    txnDescriptionError: document.getElementById('txn-description-error'),
+    txnAmount: document.getElementById('txn-amount'),
+    txnAmountError: document.getElementById('txn-amount-error'),
+    txnDate: document.getElementById('txn-date'),
+    txnDateError: document.getElementById('txn-date-error'),
+    txnCategory: document.getElementById('txn-category'),
+    txnMethod: document.getElementById('txn-method'),
+    txnStatus: document.getElementById('txn-status'),
+    txnInvoiceRef: document.getElementById('txn-invoice-ref'),
+    txnClient: document.getElementById('txn-client'),
+    txnNotes: document.getElementById('txn-notes'),
+    btnDeleteTxn: document.getElementById('btn-delete-txn'),
+    btnSaveTxn: document.getElementById('btn-save-txn'),
 
     // Lightbox
     modalLightbox: document.getElementById('modal-lightbox'),
@@ -631,12 +734,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function loadAdminData() {
     try {
-      const [albumsRes, photosRes] = await Promise.all([
+      const [albumsRes, photosRes, activitiesRes, transactionsRes] = await Promise.all([
         fetch('/api/admin/albums', { headers: getAuthHeaders() }),
-        fetch('/api/admin/photos', { headers: getAuthHeaders() })
+        fetch('/api/admin/photos', { headers: getAuthHeaders() }),
+        fetch('/api/admin/activities', { headers: getAuthHeaders() }),
+        fetch('/api/admin/transactions', { headers: getAuthHeaders() })
       ]);
 
-      if (albumsRes.status === 401 || albumsRes.status === 403 || photosRes.status === 401 || photosRes.status === 403) {
+      if (
+        albumsRes.status === 401 || albumsRes.status === 403 ||
+        photosRes.status === 401 || photosRes.status === 403 ||
+        activitiesRes.status === 401 || activitiesRes.status === 403 ||
+        transactionsRes.status === 401 || transactionsRes.status === 403
+      ) {
         await performAdminLogout({ expired: true });
         return;
       }
@@ -648,6 +758,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (photosRes.ok) {
         const phData = await photosRes.json();
         state.photos = phData.photos || [];
+      }
+      if (activitiesRes.ok) {
+        const actData = await activitiesRes.json();
+        state.activities = actData.activities || [];
+      }
+      if (transactionsRes.ok) {
+        const txnData = await transactionsRes.json();
+        state.transactions = txnData.transactions || [];
       }
 
       if (state.selectedAlbumId && !state.albums.some(a => a.id === state.selectedAlbumId)) {
@@ -675,6 +793,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     dom.statSlideshowCount.textContent = `${slideshowPhotosCount} foto`;
     dom.adminAlbumsBadge.textContent = `${state.albums.length} album`;
 
+    renderAdminCalendar();
+    renderAdminCash();
     renderAdminAlbumChips();
     renderAdminAlbumCards();
     renderAdminPhotoGrid();
@@ -2264,6 +2384,1049 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
+  // =========================================================================
+  // CALENDARIO ATTIVITÀ ADMIN (PROGRAMMATE ED IN CORSO)
+  // =========================================================================
+  const IT_MONTHS = [
+    'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+    'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
+  ];
+  const IT_WEEKDAYS_LONG = [
+    'Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'
+  ];
+  const ACTIVITY_STATUS_LABELS = {
+    scheduled: 'Programmata',
+    in_progress: 'In corso',
+    completed: 'Completata'
+  };
+
+  function toIsoDateLocal(dateObj) {
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function parseIsoDateLocal(isoStr) {
+    if (!isoStr || !/^\d{4}-\d{2}-\d{2}$/.test(isoStr)) return new Date();
+    const [y, m, d] = isoStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  function formatItalianDateLong(isoStr) {
+    const dt = parseIsoDateLocal(isoStr);
+    return `${IT_WEEKDAYS_LONG[dt.getDay()]} ${dt.getDate()} ${IT_MONTHS[dt.getMonth()]} ${dt.getFullYear()}`;
+  }
+
+  function formatItalianDateShort(isoStr) {
+    if (!isoStr || !/^\d{4}-\d{2}-\d{2}$/.test(isoStr)) return '';
+    const [y, m, d] = isoStr.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  function activityOccursOnDate(activity, isoDate) {
+    if (!activity || !activity.date) return false;
+    const end = activity.endDate || activity.date;
+    return isoDate >= activity.date && isoDate <= end;
+  }
+
+  function getFilteredActivities() {
+    if (state.calendarFilter === 'all') return state.activities;
+    return state.activities.filter(a => a.status === state.calendarFilter);
+  }
+
+  function sortActivitiesClient(list) {
+    return [...list].sort((a, b) => {
+      const dateCmp = String(a.date || '').localeCompare(String(b.date || ''));
+      if (dateCmp !== 0) return dateCmp;
+      const timeCmp = String(a.time || '99:99').localeCompare(String(b.time || '99:99'));
+      if (timeCmp !== 0) return timeCmp;
+      return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
+    });
+  }
+
+  function renderAdminCalendar() {
+    if (!dom.calDaysGrid) return;
+
+    const scheduledCount = state.activities.filter(a => a.status === 'scheduled').length;
+    const inProgressCount = state.activities.filter(a => a.status === 'in_progress').length;
+    if (dom.calCountScheduled) {
+      dom.calCountScheduled.textContent = `${scheduledCount} ${scheduledCount === 1 ? 'programmata' : 'programmate'}`;
+    }
+    if (dom.calCountInProgress) {
+      dom.calCountInProgress.textContent = `${inProgressCount} in corso`;
+    }
+
+    if (dom.calMonthLabel) {
+      dom.calMonthLabel.textContent = `${IT_MONTHS[state.calendarMonth]} ${state.calendarYear}`;
+    }
+
+    if (dom.calFilterChips) {
+      dom.calFilterChips.querySelectorAll('.cal-filter-chip').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === state.calendarFilter);
+      });
+    }
+
+    const filtered = getFilteredActivities();
+    const todayIso = toIsoDateLocal(new Date());
+    const firstOfMonth = new Date(state.calendarYear, state.calendarMonth, 1);
+    const startOffset = (firstOfMonth.getDay() + 6) % 7; // Lunedì = 0
+    const gridStart = new Date(state.calendarYear, state.calendarMonth, 1 - startOffset);
+
+    dom.calDaysGrid.innerHTML = '';
+
+    for (let i = 0; i < 42; i++) {
+      const cellDate = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
+      const cellIso = toIsoDateLocal(cellDate);
+      const isCurrentMonth = cellDate.getMonth() === state.calendarMonth;
+      const isToday = cellIso === todayIso;
+      const isSelected = cellIso === state.calendarSelectedDate;
+
+      const dayActivities = filtered.filter(a => activityOccursOnDate(a, cellIso));
+
+      const cell = document.createElement('div');
+      cell.className = 'calendar-day-cell';
+      if (!isCurrentMonth) cell.classList.add('other-month');
+      if (isToday) cell.classList.add('today');
+      if (isSelected) cell.classList.add('selected');
+      cell.dataset.date = cellIso;
+
+      const top = document.createElement('div');
+      top.className = 'cal-day-top';
+      const num = document.createElement('span');
+      num.className = 'cal-day-num';
+      num.textContent = String(cellDate.getDate());
+      top.appendChild(num);
+      cell.appendChild(top);
+
+      if (dayActivities.length > 0) {
+        const eventsWrap = document.createElement('div');
+        eventsWrap.className = 'cal-day-events';
+
+        const maxVisible = 3;
+        dayActivities.slice(0, maxVisible).forEach(act => {
+          const pill = document.createElement('button');
+          pill.type = 'button';
+          pill.className = `cal-event-pill status-${act.status || 'scheduled'}`;
+          pill.title = `${act.time ? act.time + ' • ' : ''}${act.title} (${ACTIVITY_STATUS_LABELS[act.status] || 'Programmata'})`;
+          pill.innerHTML = `
+            <span class="cal-event-dot"></span>
+            <span class="cal-event-title-text">${act.time ? escapeHtml(act.time) + ' ' : ''}${escapeHtml(act.title)}</span>
+          `;
+          pill.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openActivityModal(act);
+          });
+          eventsWrap.appendChild(pill);
+        });
+
+        if (dayActivities.length > maxVisible) {
+          const more = document.createElement('span');
+          more.className = 'cal-more-indicator';
+          more.textContent = `+${dayActivities.length - maxVisible} altre`;
+          eventsWrap.appendChild(more);
+        }
+
+        cell.appendChild(eventsWrap);
+      }
+
+      cell.addEventListener('click', () => {
+        state.calendarSelectedDate = cellIso;
+        state.calendarAgendaMode = 'day';
+        if (!isCurrentMonth) {
+          state.calendarYear = cellDate.getFullYear();
+          state.calendarMonth = cellDate.getMonth();
+        }
+        renderAdminCalendar();
+      });
+
+      cell.addEventListener('dblclick', () => {
+        state.calendarSelectedDate = cellIso;
+        openActivityModal(null, cellIso);
+      });
+
+      dom.calDaysGrid.appendChild(cell);
+    }
+
+    renderCalendarAgenda();
+  }
+
+  function renderCalendarAgenda() {
+    if (!dom.calAgendaList) return;
+
+    if (dom.btnAgendaDay) dom.btnAgendaDay.classList.toggle('active', state.calendarAgendaMode === 'day');
+    if (dom.btnAgendaUpcoming) dom.btnAgendaUpcoming.classList.toggle('active', state.calendarAgendaMode === 'upcoming');
+
+    const todayIso = toIsoDateLocal(new Date());
+    let items = [];
+
+    if (state.calendarAgendaMode === 'upcoming') {
+      if (dom.calSelectedDateLabel) dom.calSelectedDateLabel.textContent = 'Attività in corso & Prossime';
+      items = sortActivitiesClient(
+        state.activities.filter(a => {
+          if (state.calendarFilter !== 'all' && a.status !== state.calendarFilter) return false;
+          if (a.status === 'in_progress') return true;
+          const end = a.endDate || a.date;
+          return a.status === 'scheduled' && end >= todayIso;
+        })
+      );
+      if (dom.calAgendaEmptyText) {
+        dom.calAgendaEmptyText.textContent = 'Nessuna attività in corso o programmata nei prossimi giorni.';
+      }
+    } else {
+      if (dom.calSelectedDateLabel) {
+        dom.calSelectedDateLabel.textContent = formatItalianDateLong(state.calendarSelectedDate);
+      }
+      items = sortActivitiesClient(
+        getFilteredActivities().filter(a => activityOccursOnDate(a, state.calendarSelectedDate))
+      );
+      if (dom.calAgendaEmptyText) {
+        dom.calAgendaEmptyText.textContent = 'Nessuna attività segnata per questa data.';
+      }
+    }
+
+    if (dom.calAgendaCount) {
+      dom.calAgendaCount.textContent = `${items.length} ${items.length === 1 ? 'attività' : 'attività'}`;
+    }
+
+    dom.calAgendaList.innerHTML = '';
+
+    if (items.length === 0) {
+      if (dom.calAgendaEmpty) dom.calAgendaEmpty.classList.remove('hidden');
+      return;
+    }
+
+    if (dom.calAgendaEmpty) dom.calAgendaEmpty.classList.add('hidden');
+
+    items.forEach(act => {
+      const card = document.createElement('div');
+      card.className = `activity-card status-${act.status || 'scheduled'}`;
+
+      const statusLabel = ACTIVITY_STATUS_LABELS[act.status] || 'Programmata';
+      const dateRange =
+        act.endDate && act.endDate !== act.date
+          ? `${formatItalianDateShort(act.date)} → ${formatItalianDateShort(act.endDate)}`
+          : formatItalianDateShort(act.date);
+
+      const metaParts = [];
+      metaParts.push(`<span class="activity-meta-item">📅 ${escapeHtml(dateRange)}</span>`);
+      if (act.time) metaParts.push(`<span class="activity-meta-item">🕒 ${escapeHtml(act.time)}</span>`);
+      if (act.client) metaParts.push(`<span class="activity-meta-item">👤 ${escapeHtml(act.client)}</span>`);
+      if (act.location) metaParts.push(`<span class="activity-meta-item">📍 ${escapeHtml(act.location)}</span>`);
+
+      card.innerHTML = `
+        <div class="activity-card-top">
+          <div class="activity-card-title">${escapeHtml(act.title)}</div>
+          <span class="activity-status-badge status-${escapeHtml(act.status || 'scheduled')}">${escapeHtml(statusLabel)}</span>
+        </div>
+        <div class="activity-card-meta">${metaParts.join('')}</div>
+        ${act.notes ? `<div class="activity-card-notes">${escapeHtml(act.notes)}</div>` : ''}
+      `;
+
+      const actionsRow = document.createElement('div');
+      actionsRow.className = 'activity-card-actions';
+
+      const statusBtn = document.createElement('button');
+      statusBtn.type = 'button';
+      if (act.status === 'scheduled') {
+        statusBtn.className = 'btn-activity-mini btn-status-next';
+        statusBtn.textContent = 'Segna In corso';
+        statusBtn.addEventListener('click', () => quickUpdateActivityStatus(act, 'in_progress'));
+      } else if (act.status === 'in_progress') {
+        statusBtn.className = 'btn-activity-mini btn-status-done';
+        statusBtn.textContent = 'Segna Completata';
+        statusBtn.addEventListener('click', () => quickUpdateActivityStatus(act, 'completed'));
+      } else {
+        statusBtn.className = 'btn-activity-mini';
+        statusBtn.textContent = 'Riprogramma';
+        statusBtn.addEventListener('click', () => quickUpdateActivityStatus(act, 'scheduled'));
+      }
+
+      const rightBtns = document.createElement('div');
+      rightBtns.className = 'activity-card-btns';
+
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'btn-activity-mini';
+      editBtn.textContent = 'Modifica';
+      editBtn.addEventListener('click', () => openActivityModal(act));
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'btn-activity-mini btn-delete-mini';
+      delBtn.textContent = 'Elimina';
+      delBtn.addEventListener('click', () => deleteActivityById(act.id, act.title));
+
+      rightBtns.appendChild(editBtn);
+      rightBtns.appendChild(delBtn);
+
+      actionsRow.appendChild(statusBtn);
+      actionsRow.appendChild(rightBtns);
+      card.appendChild(actionsRow);
+
+      dom.calAgendaList.appendChild(card);
+    });
+  }
+
+  function openActivityModal(activity = null, defaultDate = null) {
+    if (!dom.modalActivity) return;
+    clearErrors();
+
+    if (activity) {
+      state.editingActivityId = activity.id;
+      dom.activityModalTitle.textContent = 'Modifica Attività';
+      dom.activityModalSubtitle.textContent = 'Aggiorna stato, data o dettagli dell\'attività';
+      const saveLabel = dom.btnSaveActivity?.querySelector('.btn-text');
+      if (saveLabel) saveLabel.textContent = 'Salva Modifiche';
+      dom.activityTitle.value = activity.title || '';
+      dom.activityStatus.value = activity.status || 'scheduled';
+      dom.activityTime.value = activity.time || '';
+      dom.activityDate.value = activity.date || state.calendarSelectedDate;
+      dom.activityEndDate.value = activity.endDate && activity.endDate !== activity.date ? activity.endDate : '';
+      dom.activityClient.value = activity.client || '';
+      dom.activityLocation.value = activity.location || '';
+      dom.activityNotes.value = activity.notes || '';
+      dom.btnDeleteActivity.classList.remove('hidden');
+    } else {
+      state.editingActivityId = null;
+      const targetDate = defaultDate || state.calendarSelectedDate || toIsoDateLocal(new Date());
+      dom.activityModalTitle.textContent = 'Nuova Attività';
+      dom.activityModalSubtitle.textContent = 'Segna un\'attività programmata o in corso sul calendario';
+      const saveLabel = dom.btnSaveActivity?.querySelector('.btn-text');
+      if (saveLabel) saveLabel.textContent = 'Salva Attività';
+      dom.activityTitle.value = '';
+      dom.activityStatus.value = 'scheduled';
+      dom.activityTime.value = '';
+      dom.activityDate.value = targetDate;
+      dom.activityEndDate.value = '';
+      dom.activityClient.value = '';
+      dom.activityLocation.value = '';
+      dom.activityNotes.value = '';
+      dom.btnDeleteActivity.classList.add('hidden');
+    }
+
+    dom.modalActivity.classList.remove('hidden');
+    dom.activityTitle.focus();
+  }
+
+  function closeActivityModal() {
+    if (!dom.modalActivity) return;
+    dom.modalActivity.classList.add('hidden');
+    state.editingActivityId = null;
+  }
+
+  async function quickUpdateActivityStatus(activity, nextStatus) {
+    try {
+      const res = await fetch(`/api/admin/activities/${encodeURIComponent(activity.id)}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({ status: nextStatus })
+      });
+      const data = await res.json();
+      if (res.status === 401 || res.status === 403) {
+        await performAdminLogout({ expired: true });
+        return;
+      }
+      if (!res.ok) throw new Error(data.message || 'Errore aggiornamento stato.');
+
+      if (data.activity) {
+        const idx = state.activities.findIndex(a => a.id === data.activity.id);
+        if (idx !== -1) state.activities[idx] = data.activity;
+      }
+      renderAdminCalendar();
+      showToast('success', 'Stato Aggiornato', `"${activity.title}" → ${ACTIVITY_STATUS_LABELS[nextStatus]}.`);
+    } catch (err) {
+      showToast('error', 'Errore', err.message || 'Impossibile aggiornare lo stato.');
+    }
+  }
+
+  async function deleteActivityById(activityId, activityTitle = '') {
+    const label = activityTitle ? `"${activityTitle}"` : 'questa attività';
+    if (!window.confirm(`Vuoi davvero eliminare ${label} dal calendario?`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/activities/${encodeURIComponent(activityId)}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (res.status === 401 || res.status === 403) {
+        await performAdminLogout({ expired: true });
+        return;
+      }
+      if (!res.ok) throw new Error(data.message || 'Errore eliminazione attività.');
+
+      state.activities = state.activities.filter(a => a.id !== activityId);
+      if (state.editingActivityId === activityId) {
+        closeActivityModal();
+      }
+      renderAdminCalendar();
+      showToast('success', 'Attività Eliminata', data.message || 'Rimossa dal calendario.');
+    } catch (err) {
+      showToast('error', 'Errore Eliminazione', err.message || 'Impossibile eliminare l\'attività.');
+    }
+  }
+
+  function bindAdminCalendarEvents() {
+    if (!dom.calDaysGrid) return;
+
+    dom.btnOpenNewActivity?.addEventListener('click', () => {
+      openActivityModal(null, state.calendarSelectedDate);
+    });
+
+    dom.btnAddActivitySelectedDay?.addEventListener('click', () => {
+      openActivityModal(null, state.calendarSelectedDate);
+    });
+
+    dom.btnCalPrevMonth?.addEventListener('click', () => {
+      if (state.calendarMonth === 0) {
+        state.calendarMonth = 11;
+        state.calendarYear -= 1;
+      } else {
+        state.calendarMonth -= 1;
+      }
+      renderAdminCalendar();
+    });
+
+    dom.btnCalNextMonth?.addEventListener('click', () => {
+      if (state.calendarMonth === 11) {
+        state.calendarMonth = 0;
+        state.calendarYear += 1;
+      } else {
+        state.calendarMonth += 1;
+      }
+      renderAdminCalendar();
+    });
+
+    dom.btnCalToday?.addEventListener('click', () => {
+      const now = new Date();
+      state.calendarYear = now.getFullYear();
+      state.calendarMonth = now.getMonth();
+      state.calendarSelectedDate = toIsoDateLocal(now);
+      state.calendarAgendaMode = 'day';
+      renderAdminCalendar();
+    });
+
+    dom.calFilterChips?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.cal-filter-chip');
+      if (!btn || !btn.dataset.filter) return;
+      state.calendarFilter = btn.dataset.filter;
+      renderAdminCalendar();
+    });
+
+    dom.btnAgendaDay?.addEventListener('click', () => {
+      state.calendarAgendaMode = 'day';
+      renderCalendarAgenda();
+    });
+
+    dom.btnAgendaUpcoming?.addEventListener('click', () => {
+      state.calendarAgendaMode = 'upcoming';
+      renderCalendarAgenda();
+    });
+
+    dom.btnCloseActivityModal?.addEventListener('click', closeActivityModal);
+    dom.btnCancelActivityModal?.addEventListener('click', closeActivityModal);
+    dom.modalActivity?.addEventListener('click', (e) => {
+      if (e.target === dom.modalActivity) closeActivityModal();
+    });
+
+    dom.btnDeleteActivity?.addEventListener('click', () => {
+      if (!state.editingActivityId) return;
+      const current = state.activities.find(a => a.id === state.editingActivityId);
+      deleteActivityById(state.editingActivityId, current?.title || '');
+    });
+
+    dom.formActivity?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearErrors();
+
+      const title = dom.activityTitle.value.trim();
+      const status = dom.activityStatus.value;
+      const date = dom.activityDate.value.trim();
+      const endDate = dom.activityEndDate.value.trim();
+      const time = dom.activityTime.value.trim();
+      const client = dom.activityClient.value.trim();
+      const location = dom.activityLocation.value.trim();
+      const notes = dom.activityNotes.value.trim();
+
+      let valid = true;
+      if (!title || title.length < 2) {
+        setError(dom.activityTitle, dom.activityTitleError, 'Inserisci un titolo (almeno 2 caratteri).');
+        valid = false;
+      }
+      if (!date) {
+        setError(dom.activityDate, dom.activityDateError, 'Seleziona una data di inizio.');
+        valid = false;
+      } else if (endDate && endDate < date) {
+        setError(dom.activityEndDate, dom.activityDateError, 'La data di fine non può precedere la data di inizio.');
+        valid = false;
+      }
+      if (!valid) return;
+
+      const isEditing = Boolean(state.editingActivityId);
+      const endpoint = isEditing
+        ? `/api/admin/activities/${encodeURIComponent(state.editingActivityId)}`
+        : '/api/admin/activities';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      setButtonLoading(dom.btnSaveActivity, true);
+      try {
+        const res = await fetch(endpoint, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeaders()
+          },
+          body: JSON.stringify({ title, status, date, endDate, time, client, location, notes })
+        });
+        const data = await res.json();
+        if (res.status === 401 || res.status === 403) {
+          await performAdminLogout({ expired: true });
+          return;
+        }
+        if (!res.ok) throw new Error(data.message || 'Errore salvataggio attività.');
+
+        if (data.activity) {
+          if (isEditing) {
+            const idx = state.activities.findIndex(a => a.id === data.activity.id);
+            if (idx !== -1) state.activities[idx] = data.activity;
+            else state.activities.push(data.activity);
+          } else {
+            state.activities.push(data.activity);
+          }
+          state.activities = sortActivitiesClient(state.activities);
+          state.calendarSelectedDate = data.activity.date;
+          const dt = parseIsoDateLocal(data.activity.date);
+          state.calendarYear = dt.getFullYear();
+          state.calendarMonth = dt.getMonth();
+        }
+
+        closeActivityModal();
+        renderAdminCalendar();
+        showToast('success', isEditing ? 'Attività Aggiornata' : 'Attività Aggiunta', data.message);
+      } catch (err) {
+        showToast('error', 'Errore Salvataggio', err.message || 'Impossibile salvare l\'attività.');
+      } finally {
+        setButtonLoading(dom.btnSaveActivity, false);
+      }
+    });
+  }
+
+  // =========================================================================
+  // GESTIONE CASSA & CONTABILITÀ ADMIN
+  // =========================================================================
+  const EURO_FORMATTER = new Intl.NumberFormat('it-IT', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+
+  const PAYMENT_METHOD_LABELS = {
+    cash: 'Contanti',
+    bank_transfer: 'Bonifico',
+    card: 'Carta / POS',
+    other: 'Altro'
+  };
+
+  function formatEuro(amount) {
+    return EURO_FORMATTER.format(Number(amount) || 0);
+  }
+
+  function sortTransactionsClient(list) {
+    return [...list].sort((a, b) => {
+      const dateCmp = String(b.date || '').localeCompare(String(a.date || ''));
+      if (dateCmp !== 0) return dateCmp;
+      return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+    });
+  }
+
+  function matchesCashPeriod(isoDate, period) {
+    if (!period || period === 'all') return true;
+    if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return false;
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth() + 1;
+    const [y, m] = isoDate.split('-').map(Number);
+
+    if (period === 'this_month') return y === curYear && m === curMonth;
+    if (period === 'this_year') return y === curYear;
+    if (period === 'last_month') {
+      const prevYear = curMonth === 1 ? curYear - 1 : curYear;
+      const prevMonth = curMonth === 1 ? 12 : curMonth - 1;
+      return y === prevYear && m === prevMonth;
+    }
+    return true;
+  }
+
+  function getCashBaseFilteredTransactions() {
+    const q = state.cashSearchQuery.trim().toLowerCase();
+    return state.transactions.filter((t) => {
+      if (!matchesCashPeriod(t.date, state.cashPeriodFilter)) return false;
+      if (state.cashMethodFilter !== 'all' && t.paymentMethod !== state.cashMethodFilter) return false;
+      if (q) {
+        const hay = `${t.description || ''} ${t.category || ''} ${t.clientOrVendor || ''} ${t.invoiceRef || ''} ${t.notes || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }
+
+  function getFilteredTransactions() {
+    const base = getCashBaseFilteredTransactions();
+    if (state.cashTypeFilter === 'income') return base.filter(t => t.type === 'income');
+    if (state.cashTypeFilter === 'expense') return base.filter(t => t.type === 'expense');
+    if (state.cashTypeFilter === 'pending') return base.filter(t => t.status === 'pending');
+    return base;
+  }
+
+  function renderAdminCash() {
+    if (!dom.cashTableBody) return;
+
+    if (dom.cashTypeChips) {
+      dom.cashTypeChips.querySelectorAll('.cal-filter-chip').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.type === state.cashTypeFilter);
+      });
+    }
+
+    const baseList = getCashBaseFilteredTransactions();
+    let paidIncome = 0;
+    let paidIncomeCount = 0;
+    let paidExpense = 0;
+    let paidExpenseCount = 0;
+    let pendingIncome = 0;
+    let pendingExpense = 0;
+
+    for (const t of baseList) {
+      const amt = Number(t.amount) || 0;
+      if (t.status === 'pending') {
+        if (t.type === 'expense') pendingExpense += amt;
+        else pendingIncome += amt;
+      } else if (t.type === 'expense') {
+        paidExpense += amt;
+        paidExpenseCount += 1;
+      } else {
+        paidIncome += amt;
+        paidIncomeCount += 1;
+      }
+    }
+
+    const balance = paidIncome - paidExpense;
+    const totalPending = pendingIncome + pendingExpense;
+
+    if (dom.cashKpiBalance) {
+      dom.cashKpiBalance.textContent = formatEuro(balance);
+      dom.cashKpiBalance.classList.toggle('is-positive', balance > 0);
+      dom.cashKpiBalance.classList.toggle('is-negative', balance < 0);
+    }
+    if (dom.cashKpiBalanceSub) {
+      dom.cashKpiBalanceSub.textContent = `${baseList.length} ${baseList.length === 1 ? 'movimento' : 'movimenti'} nel periodo`;
+    }
+    if (dom.cashKpiIncome) dom.cashKpiIncome.textContent = formatEuro(paidIncome);
+    if (dom.cashKpiIncomeSub) {
+      dom.cashKpiIncomeSub.textContent = `${paidIncomeCount} ${paidIncomeCount === 1 ? 'entrata incassata' : 'entrate incassate'}`;
+    }
+    if (dom.cashKpiExpense) dom.cashKpiExpense.textContent = formatEuro(paidExpense);
+    if (dom.cashKpiExpenseSub) {
+      dom.cashKpiExpenseSub.textContent = `${paidExpenseCount} ${paidExpenseCount === 1 ? 'uscita pagata' : 'uscite pagate'}`;
+    }
+    if (dom.cashKpiPending) dom.cashKpiPending.textContent = formatEuro(totalPending);
+    if (dom.cashKpiPendingSub) {
+      dom.cashKpiPendingSub.textContent = `Da incassare: ${formatEuro(pendingIncome)} • Da pagare: ${formatEuro(pendingExpense)}`;
+    }
+
+    const list = sortTransactionsClient(getFilteredTransactions());
+    dom.cashTableBody.innerHTML = '';
+
+    if (list.length === 0) {
+      if (dom.cashTable) dom.cashTable.classList.add('hidden');
+      if (dom.cashTableEmpty) dom.cashTableEmpty.classList.remove('hidden');
+      return;
+    }
+
+    if (dom.cashTable) dom.cashTable.classList.remove('hidden');
+    if (dom.cashTableEmpty) dom.cashTableEmpty.classList.add('hidden');
+
+    list.forEach((txn) => {
+      const tr = document.createElement('tr');
+      const isExpense = txn.type === 'expense';
+      const isPending = txn.status === 'pending';
+      const methodLabel = PAYMENT_METHOD_LABELS[txn.paymentMethod] || 'Altro';
+      const statusLabel = isPending ? 'In sospeso' : (isExpense ? 'Pagato' : 'Incassato');
+      const sign = isExpense ? '- ' : '+ ';
+
+      const tdDate = document.createElement('td');
+      tdDate.textContent = formatItalianDateShort(txn.date);
+
+      const tdDesc = document.createElement('td');
+      tdDesc.innerHTML = `
+        <div class="cash-desc-title">${escapeHtml(txn.description)}</div>
+        <div class="cash-desc-meta">
+          <span class="cash-cat-pill">${escapeHtml(txn.category || 'Altro')}</span>
+          ${txn.invoiceRef ? `<span>Rif. ${escapeHtml(txn.invoiceRef)}</span>` : ''}
+          ${txn.notes ? `<span>• ${escapeHtml(txn.notes.length > 60 ? txn.notes.slice(0, 60) + '…' : txn.notes)}</span>` : ''}
+        </div>
+      `;
+
+      const tdClient = document.createElement('td');
+      tdClient.textContent = txn.clientOrVendor || '—';
+
+      const tdMethod = document.createElement('td');
+      tdMethod.textContent = methodLabel;
+
+      const tdStatus = document.createElement('td');
+      const statusBtn = document.createElement('button');
+      statusBtn.type = 'button';
+      statusBtn.className = `cash-status-pill ${isPending ? 'pending' : 'paid'}`;
+      statusBtn.title = isPending ? 'Clicca per segnare come incassato/pagato' : 'Clicca per segnare in sospeso';
+      statusBtn.textContent = statusLabel;
+      statusBtn.addEventListener('click', () => toggleTransactionStatus(txn));
+      tdStatus.appendChild(statusBtn);
+
+      const tdAmount = document.createElement('td');
+      tdAmount.className = `text-right cash-amount ${isExpense ? 'expense' : 'income'}`;
+      tdAmount.textContent = `${sign}${formatEuro(txn.amount)}`;
+
+      const tdActions = document.createElement('td');
+      tdActions.className = 'text-right';
+      const actionsWrap = document.createElement('div');
+      actionsWrap.className = 'cash-row-actions';
+
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'btn-activity-mini btn-edit-mini';
+      editBtn.textContent = 'Modifica';
+      editBtn.addEventListener('click', () => openTransactionModal(txn));
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'btn-activity-mini btn-delete-mini';
+      delBtn.textContent = 'Elimina';
+      delBtn.addEventListener('click', () => deleteTransactionById(txn.id, txn.description));
+
+      actionsWrap.appendChild(editBtn);
+      actionsWrap.appendChild(delBtn);
+      tdActions.appendChild(actionsWrap);
+
+      tr.appendChild(tdDate);
+      tr.appendChild(tdDesc);
+      tr.appendChild(tdClient);
+      tr.appendChild(tdMethod);
+      tr.appendChild(tdStatus);
+      tr.appendChild(tdAmount);
+      tr.appendChild(tdActions);
+      dom.cashTableBody.appendChild(tr);
+    });
+  }
+
+  function setTxnModalType(type) {
+    state.txnModalType = type === 'expense' ? 'expense' : 'income';
+    if (dom.btnTxnTypeIncome) {
+      dom.btnTxnTypeIncome.classList.toggle('active-income', state.txnModalType === 'income');
+    }
+    if (dom.btnTxnTypeExpense) {
+      dom.btnTxnTypeExpense.classList.toggle('active-expense', state.txnModalType === 'expense');
+    }
+  }
+
+  function openTransactionModal(txn = null, defaultType = 'income') {
+    if (!dom.modalTransaction) return;
+    clearErrors();
+
+    if (txn) {
+      state.editingTxnId = txn.id;
+      setTxnModalType(txn.type);
+      dom.txnModalTitle.textContent = 'Modifica Movimento Cassa';
+      dom.txnModalSubtitle.textContent = 'Aggiorna importo, stato o dettagli del movimento contabile';
+      const saveLabel = dom.btnSaveTxn?.querySelector('.btn-text');
+      if (saveLabel) saveLabel.textContent = 'Salva Modifiche';
+      dom.txnDescription.value = txn.description || '';
+      dom.txnAmount.value = Number(txn.amount || 0).toFixed(2);
+      dom.txnDate.value = txn.date || toIsoDateLocal(new Date());
+      dom.txnCategory.value = txn.category || '';
+      dom.txnMethod.value = txn.paymentMethod || 'bank_transfer';
+      dom.txnStatus.value = txn.status || 'paid';
+      dom.txnInvoiceRef.value = txn.invoiceRef || '';
+      dom.txnClient.value = txn.clientOrVendor || '';
+      dom.txnNotes.value = txn.notes || '';
+      dom.btnDeleteTxn.classList.remove('hidden');
+    } else {
+      state.editingTxnId = null;
+      setTxnModalType(defaultType);
+      dom.txnModalTitle.textContent = defaultType === 'expense' ? 'Nuova Uscita' : 'Nuova Entrata';
+      dom.txnModalSubtitle.textContent = 'Registra un movimento nella contabilità dello studio';
+      const saveLabel = dom.btnSaveTxn?.querySelector('.btn-text');
+      if (saveLabel) saveLabel.textContent = 'Salva Movimento';
+      dom.txnDescription.value = '';
+      dom.txnAmount.value = '';
+      dom.txnDate.value = toIsoDateLocal(new Date());
+      dom.txnCategory.value = '';
+      dom.txnMethod.value = 'bank_transfer';
+      dom.txnStatus.value = 'paid';
+      dom.txnInvoiceRef.value = '';
+      dom.txnClient.value = '';
+      dom.txnNotes.value = '';
+      dom.btnDeleteTxn.classList.add('hidden');
+    }
+
+    dom.modalTransaction.classList.remove('hidden');
+    dom.txnDescription.focus();
+  }
+
+  function closeTransactionModal() {
+    if (!dom.modalTransaction) return;
+    dom.modalTransaction.classList.add('hidden');
+    state.editingTxnId = null;
+  }
+
+  async function toggleTransactionStatus(txn) {
+    const nextStatus = txn.status === 'pending' ? 'paid' : 'pending';
+    try {
+      const res = await fetch(`/api/admin/transactions/${encodeURIComponent(txn.id)}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({ status: nextStatus })
+      });
+      const data = await res.json();
+      if (res.status === 401 || res.status === 403) {
+        await performAdminLogout({ expired: true });
+        return;
+      }
+      if (!res.ok) throw new Error(data.message || 'Errore aggiornamento stato.');
+
+      if (data.transaction) {
+        const idx = state.transactions.findIndex(t => t.id === data.transaction.id);
+        if (idx !== -1) state.transactions[idx] = data.transaction;
+      }
+      renderAdminCash();
+      showToast(
+        'success',
+        'Stato Aggiornato',
+        `"${txn.description}" segnato come ${nextStatus === 'paid' ? (txn.type === 'expense' ? 'Pagato' : 'Incassato') : 'In sospeso'}.`
+      );
+    } catch (err) {
+      showToast('error', 'Errore', err.message || 'Impossibile aggiornare lo stato.');
+    }
+  }
+
+  async function deleteTransactionById(txnId, description = '') {
+    const label = description ? `"${description}"` : 'questo movimento';
+    if (!window.confirm(`Vuoi davvero eliminare ${label} dalla cassa?`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/transactions/${encodeURIComponent(txnId)}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (res.status === 401 || res.status === 403) {
+        await performAdminLogout({ expired: true });
+        return;
+      }
+      if (!res.ok) throw new Error(data.message || 'Errore eliminazione movimento.');
+
+      state.transactions = state.transactions.filter(t => t.id !== txnId);
+      if (state.editingTxnId === txnId) {
+        closeTransactionModal();
+      }
+      renderAdminCash();
+      showToast('success', 'Movimento Eliminato', data.message || 'Rimosso dalla cassa.');
+    } catch (err) {
+      showToast('error', 'Errore Eliminazione', err.message || 'Impossibile eliminare il movimento.');
+    }
+  }
+
+  function exportCashCsv() {
+    const list = sortTransactionsClient(getFilteredTransactions());
+    if (list.length === 0) {
+      showToast('info', 'Esportazione CSV', 'Nessun movimento da esportare con i filtri attuali.');
+      return;
+    }
+
+    const csvEscape = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+    const header = ['Data', 'Tipo', 'Descrizione', 'Categoria', 'Cliente/Fornitore', 'Metodo', 'Stato', 'Rif. Fattura', 'Importo (EUR)', 'Note'];
+    const rows = list.map((t) => {
+      const signed = t.type === 'expense' ? -Math.abs(Number(t.amount) || 0) : Math.abs(Number(t.amount) || 0);
+      return [
+        t.date,
+        t.type === 'expense' ? 'Uscita' : 'Entrata',
+        t.description,
+        t.category || 'Altro',
+        t.clientOrVendor || '',
+        PAYMENT_METHOD_LABELS[t.paymentMethod] || 'Altro',
+        t.status === 'pending' ? 'In sospeso' : (t.type === 'expense' ? 'Pagato' : 'Incassato'),
+        t.invoiceRef || '',
+        signed.toFixed(2).replace('.', ','),
+        t.notes || ''
+      ].map(csvEscape).join(';');
+    });
+
+    const csvContent = '\uFEFF' + [header.map(csvEscape).join(';'), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `cassa_contabilita_${toIsoDateLocal(new Date())}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    showToast('success', 'CSV Esportato', `${list.length} movimenti esportati in formato CSV.`);
+  }
+
+  function openCashManagerModal() {
+    if (!dom.modalCashManager) return;
+    renderAdminCash();
+    dom.modalCashManager.classList.remove('hidden');
+  }
+
+  function closeCashManagerModal() {
+    if (!dom.modalCashManager) return;
+    dom.modalCashManager.classList.add('hidden');
+  }
+
+  function bindAdminCashEvents() {
+    if (!dom.cashTableBody) return;
+
+    dom.btnOpenCashAdmin?.addEventListener('click', openCashManagerModal);
+    dom.btnCloseCashManager?.addEventListener('click', closeCashManagerModal);
+    dom.modalCashManager?.addEventListener('click', (e) => {
+      if (e.target === dom.modalCashManager) closeCashManagerModal();
+    });
+
+    dom.btnNewIncome?.addEventListener('click', () => openTransactionModal(null, 'income'));
+    dom.btnNewExpense?.addEventListener('click', () => openTransactionModal(null, 'expense'));
+    dom.btnExportCashCsv?.addEventListener('click', exportCashCsv);
+
+    dom.cashTypeChips?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.cal-filter-chip');
+      if (!btn || !btn.dataset.type) return;
+      state.cashTypeFilter = btn.dataset.type;
+      renderAdminCash();
+    });
+
+    dom.cashPeriodFilter?.addEventListener('change', () => {
+      state.cashPeriodFilter = dom.cashPeriodFilter.value || 'all';
+      renderAdminCash();
+    });
+
+    dom.cashMethodFilter?.addEventListener('change', () => {
+      state.cashMethodFilter = dom.cashMethodFilter.value || 'all';
+      renderAdminCash();
+    });
+
+    dom.cashSearchInput?.addEventListener('input', () => {
+      state.cashSearchQuery = dom.cashSearchInput.value || '';
+      renderAdminCash();
+    });
+
+    dom.btnTxnTypeIncome?.addEventListener('click', () => setTxnModalType('income'));
+    dom.btnTxnTypeExpense?.addEventListener('click', () => setTxnModalType('expense'));
+
+    dom.btnCloseTxnModal?.addEventListener('click', closeTransactionModal);
+    dom.btnCancelTxnModal?.addEventListener('click', closeTransactionModal);
+    dom.modalTransaction?.addEventListener('click', (e) => {
+      if (e.target === dom.modalTransaction) closeTransactionModal();
+    });
+
+    dom.btnDeleteTxn?.addEventListener('click', () => {
+      if (!state.editingTxnId) return;
+      const cur = state.transactions.find(t => t.id === state.editingTxnId);
+      deleteTransactionById(state.editingTxnId, cur?.description || '');
+    });
+
+    dom.formTransaction?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearErrors();
+
+      const type = state.txnModalType;
+      const description = dom.txnDescription.value.trim();
+      const amount = Number(String(dom.txnAmount.value || '').replace(',', '.'));
+      const date = dom.txnDate.value.trim();
+      const category = dom.txnCategory.value.trim() || 'Altro';
+      const paymentMethod = dom.txnMethod.value;
+      const status = dom.txnStatus.value;
+      const invoiceRef = dom.txnInvoiceRef.value.trim();
+      const clientOrVendor = dom.txnClient.value.trim();
+      const notes = dom.txnNotes.value.trim();
+
+      let valid = true;
+      if (!description || description.length < 2) {
+        setError(dom.txnDescription, dom.txnDescriptionError, 'Inserisci una descrizione (almeno 2 caratteri).');
+        valid = false;
+      }
+      if (!Number.isFinite(amount) || amount <= 0) {
+        setError(dom.txnAmount, dom.txnAmountError, 'Inserisci un importo valido maggiore di 0.');
+        valid = false;
+      }
+      if (!date) {
+        setError(dom.txnDate, dom.txnDateError, 'Seleziona una data.');
+        valid = false;
+      }
+      if (!valid) return;
+
+      const isEditing = Boolean(state.editingTxnId);
+      const endpoint = isEditing
+        ? `/api/admin/transactions/${encodeURIComponent(state.editingTxnId)}`
+        : '/api/admin/transactions';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      setButtonLoading(dom.btnSaveTxn, true);
+      try {
+        const res = await fetch(endpoint, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeaders()
+          },
+          body: JSON.stringify({
+            type,
+            description,
+            amount,
+            date,
+            category,
+            paymentMethod,
+            status,
+            invoiceRef,
+            clientOrVendor,
+            notes
+          })
+        });
+        const data = await res.json();
+        if (res.status === 401 || res.status === 403) {
+          await performAdminLogout({ expired: true });
+          return;
+        }
+        if (!res.ok) throw new Error(data.message || 'Errore salvataggio movimento.');
+
+        if (data.transaction) {
+          if (isEditing) {
+            const idx = state.transactions.findIndex(t => t.id === data.transaction.id);
+            if (idx !== -1) state.transactions[idx] = data.transaction;
+            else state.transactions.push(data.transaction);
+          } else {
+            state.transactions.push(data.transaction);
+          }
+          state.transactions = sortTransactionsClient(state.transactions);
+        }
+
+        closeTransactionModal();
+        renderAdminCash();
+        showToast('success', isEditing ? 'Movimento Aggiornato' : 'Movimento Registrato', data.message);
+      } catch (err) {
+        showToast('error', 'Errore Salvataggio', err.message || 'Impossibile salvare il movimento.');
+      } finally {
+        setButtonLoading(dom.btnSaveTxn, false);
+      }
+    });
+  }
+
   window.addEventListener('keydown', (e) => {
     if (!dom.modalLightbox.classList.contains('hidden')) {
       if (e.target === dom.lightboxVideo && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === ' ')) {
@@ -2278,6 +3441,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (e.key === 'Escape' && dom.modalPhotoEditor && !dom.modalPhotoEditor.classList.contains('hidden')) {
       photoEditor.close();
+      return;
+    }
+    if (e.key === 'Escape' && dom.modalTransaction && !dom.modalTransaction.classList.contains('hidden')) {
+      closeTransactionModal();
+      return;
+    }
+    if (e.key === 'Escape' && dom.modalCashManager && !dom.modalCashManager.classList.contains('hidden')) {
+      closeCashManagerModal();
+      return;
+    }
+    if (e.key === 'Escape' && dom.modalActivity && !dom.modalActivity.classList.contains('hidden')) {
+      closeActivityModal();
       return;
     }
     if (e.key === 'Escape' && !dom.modalShareAlbum.classList.contains('hidden')) {
@@ -2304,12 +3479,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     dom.clientUsername,
     dom.clientPassword,
     dom.shareClientUsername,
-    dom.shareClientPassword
+    dom.shareClientPassword,
+    dom.activityTitle,
+    dom.activityDate,
+    dom.activityEndDate,
+    dom.txnDescription,
+    dom.txnAmount,
+    dom.txnDate
   ].forEach(inp => {
     if (!inp) return;
     inp.addEventListener('input', () => {
       inp.classList.remove('has-error');
-      const err = document.getElementById(`${inp.id}-error`);
+      const errId = inp === dom.activityEndDate ? 'activity-date-error' : `${inp.id}-error`;
+      const err = document.getElementById(errId);
       if (err) {
         err.textContent = '';
         err.classList.remove('visible');
@@ -2320,6 +3502,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // =========================================================================
   // AVVIO APPLICAZIONE
   // =========================================================================
+  bindAdminCalendarEvents();
+  bindAdminCashEvents();
   photoEditor.init();
   await bgManager.init();
   if (state.viewMode === 'client') {

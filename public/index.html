@@ -167,6 +167,14 @@
             Editor Foto
           </button>
 
+          <button type="button" class="btn-secondary" id="btn-open-cash-admin" title="Apri la gestione cassa e contabilità">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+              <rect x="2" y="5" width="20" height="14" rx="2"/>
+              <line x1="2" y1="10" x2="22" y2="10"/>
+            </svg>
+            Gestione Cassa
+          </button>
+
           <button type="button" class="btn-secondary" id="btn-refresh-admin" title="Aggiorna elenco album e foto">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
               <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
@@ -216,6 +224,107 @@
         <div class="stat-box">
           <span class="stat-label">Sfondo Home Attivo</span>
           <span class="stat-value" id="stat-slideshow-count">0 foto</span>
+        </div>
+      </div>
+
+      <!-- Calendario Attività Programmate ed in Corso -->
+      <div class="calendar-section-container" id="admin-calendar-section">
+        <div class="calendar-section-header">
+          <div class="albums-header-title">
+            <div class="albums-icon-badge calendar-icon-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </div>
+            <div class="albums-header-texts">
+              <h3>Calendario Attività</h3>
+              <p>Segna e monitora servizi, consegne e attività programmate o in corso</p>
+            </div>
+          </div>
+
+          <div class="calendar-header-right">
+            <div class="calendar-summary-pills">
+              <span class="cal-summary-pill scheduled" id="cal-count-scheduled">0 programmate</span>
+              <span class="cal-summary-pill in-progress" id="cal-count-inprogress">0 in corso</span>
+            </div>
+            <button type="button" class="btn-primary-action btn-sm-action" id="btn-open-new-activity">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="mini-icon">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              <span>Nuova Attività</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="calendar-layout">
+          <!-- Griglia Mensile -->
+          <div class="calendar-board">
+            <div class="calendar-toolbar">
+              <div class="calendar-nav-group">
+                <button type="button" class="btn-cal-nav" id="btn-cal-prev-month" title="Mese precedente" aria-label="Mese precedente">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <h4 class="calendar-month-label" id="cal-month-label">Novembre 2026</h4>
+                <button type="button" class="btn-cal-nav" id="btn-cal-next-month" title="Mese successivo" aria-label="Mese successivo">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <button type="button" class="btn-secondary btn-xs" id="btn-cal-today">Oggi</button>
+              </div>
+
+              <div class="calendar-filter-chips" id="cal-filter-chips">
+                <button type="button" class="cal-filter-chip active" data-filter="all">Tutte</button>
+                <button type="button" class="cal-filter-chip" data-filter="scheduled">Programmate</button>
+                <button type="button" class="cal-filter-chip" data-filter="in_progress">In corso</button>
+                <button type="button" class="cal-filter-chip" data-filter="completed">Completate</button>
+              </div>
+            </div>
+
+            <div class="calendar-weekdays" aria-hidden="true">
+              <span>Lun</span>
+              <span>Mar</span>
+              <span>Mer</span>
+              <span>Gio</span>
+              <span>Ven</span>
+              <span>Sab</span>
+              <span>Dom</span>
+            </div>
+
+            <div class="calendar-days-grid" id="cal-days-grid"></div>
+          </div>
+
+          <!-- Pannello Agenda Giorno / Attive -->
+          <aside class="calendar-agenda">
+            <div class="calendar-agenda-tabs">
+              <button type="button" class="cal-agenda-tab active" id="btn-agenda-day" data-mode="day">Giorno selezionato</button>
+              <button type="button" class="cal-agenda-tab" id="btn-agenda-upcoming" data-mode="upcoming">In corso &amp; Prossime</button>
+            </div>
+
+            <div class="calendar-agenda-header">
+              <div>
+                <h4 id="cal-selected-date-label">Oggi</h4>
+                <span class="cal-agenda-subtitle" id="cal-agenda-count">0 attività</span>
+              </div>
+              <button type="button" class="btn-secondary btn-xs" id="btn-add-activity-selected-day" title="Aggiungi attività in questa data">
+                + Aggiungi
+              </button>
+            </div>
+
+            <div class="calendar-agenda-list" id="cal-agenda-list"></div>
+
+            <div class="calendar-agenda-empty hidden" id="cal-agenda-empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              <p id="cal-agenda-empty-text">Nessuna attività segnata per questa data.</p>
+            </div>
+          </aside>
         </div>
       </div>
 
@@ -478,6 +587,328 @@
             <span class="btn-text">Salva Condivisione</span>
             <span class="spinner" aria-hidden="true"></span>
           </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL ADMIN: CREA / MODIFICA ATTIVITÀ CALENDARIO
+       ========================================================================= -->
+  <div id="modal-activity" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="activity-modal-title">
+    <div class="modal-content modal-activity-content">
+      <button type="button" class="modal-close modal-close-corner" id="btn-close-activity-modal" aria-label="Chiudi finestra">&times;</button>
+
+      <div class="modal-icon-wrap calendar-modal-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+      </div>
+
+      <h2 id="activity-modal-title">Nuova Attività</h2>
+      <p class="modal-desc" id="activity-modal-subtitle">Segna un'attività programmata o in corso sul calendario</p>
+
+      <form id="form-activity" class="share-form" novalidate>
+        <div class="form-group">
+          <label for="activity-title">Titolo Attività *</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            <input type="text" id="activity-title" placeholder="es. Servizio Matrimonio Marco & Sara" maxlength="120" required>
+          </div>
+          <span class="field-error" id="activity-title-error"></span>
+        </div>
+
+        <div class="activity-form-grid-2">
+          <div class="form-group">
+            <label for="activity-status">Stato *</label>
+            <select id="activity-status" class="activity-select">
+              <option value="scheduled">Programmata</option>
+              <option value="in_progress">In corso</option>
+              <option value="completed">Completata</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="activity-time">Orario</label>
+            <input type="time" id="activity-time" class="activity-plain-input">
+          </div>
+        </div>
+
+        <div class="activity-form-grid-2">
+          <div class="form-group">
+            <label for="activity-date">Data Inizio *</label>
+            <input type="date" id="activity-date" class="activity-plain-input" required>
+          </div>
+
+          <div class="form-group">
+            <label for="activity-end-date">Data Fine (opzionale)</label>
+            <input type="date" id="activity-end-date" class="activity-plain-input">
+          </div>
+        </div>
+        <span class="field-error" id="activity-date-error"></span>
+
+        <div class="activity-form-grid-2">
+          <div class="form-group">
+            <label for="activity-client">Cliente / Progetto</label>
+            <input type="text" id="activity-client" class="activity-plain-input" placeholder="es. Marco & Sara" maxlength="100">
+          </div>
+
+          <div class="form-group">
+            <label for="activity-location">Luogo</label>
+            <input type="text" id="activity-location" class="activity-plain-input" placeholder="es. Villa d'Este / Studio" maxlength="140">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="activity-notes">Note</label>
+          <textarea id="activity-notes" class="activity-textarea" rows="3" maxlength="1000" placeholder="Dettagli attrezzatura, consegne, orari o promemoria..."></textarea>
+        </div>
+
+        <div class="modal-actions modal-activity-actions">
+          <button type="button" class="btn-danger hidden" id="btn-delete-activity">Elimina</button>
+          <div class="modal-activity-actions-right">
+            <button type="button" class="btn-secondary" id="btn-cancel-activity-modal">Annulla</button>
+            <button type="submit" class="btn-primary" id="btn-save-activity">
+              <span class="btn-text">Salva Attività</span>
+              <span class="spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL ADMIN: GESTIONE CASSA & CONTABILITÀ
+       ========================================================================= -->
+  <div id="modal-cash-manager" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="cash-manager-title">
+    <div class="studio-modal-content cash-manager-modal">
+      <div class="studio-modal-header">
+        <div class="studio-title-wrap">
+          <div class="studio-badge-icon cash-icon-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="5" width="20" height="14" rx="2"/>
+              <line x1="2" y1="10" x2="22" y2="10"/>
+            </svg>
+          </div>
+          <div>
+            <h2 id="cash-manager-title">Gestione Cassa &amp; Contabilità</h2>
+            <p>Tieni traccia di entrate, uscite, acconti, saldi e movimenti contabili dello studio</p>
+          </div>
+        </div>
+
+        <div class="cash-modal-header-right">
+          <div class="cash-header-actions">
+            <button type="button" class="btn-secondary btn-xs" id="btn-export-cash-csv" title="Esporta movimenti filtrati in formato CSV">
+              Esporta CSV
+            </button>
+            <button type="button" class="btn-cash-expense" id="btn-new-expense">
+              - Nuova Uscita
+            </button>
+            <button type="button" class="btn-cash-income" id="btn-new-income">
+              + Nuova Entrata
+            </button>
+          </div>
+          <button type="button" class="modal-close" id="btn-close-cash-manager" aria-label="Chiudi gestione cassa">&times;</button>
+        </div>
+      </div>
+
+      <div class="studio-view active cash-modal-body" id="admin-cash-section">
+        <!-- KPI Riepilogo Cassa -->
+        <div class="cash-kpi-grid">
+          <div class="cash-kpi-card kpi-balance">
+            <span class="cash-kpi-label">Saldo Netto (Incassato)</span>
+            <span class="cash-kpi-value" id="cash-kpi-balance">&euro; 0,00</span>
+            <span class="cash-kpi-sub" id="cash-kpi-balance-sub">0 movimenti nel periodo</span>
+          </div>
+          <div class="cash-kpi-card kpi-income">
+            <span class="cash-kpi-label">Entrate Incassate</span>
+            <span class="cash-kpi-value" id="cash-kpi-income">&euro; 0,00</span>
+            <span class="cash-kpi-sub" id="cash-kpi-income-sub">0 entrate</span>
+          </div>
+          <div class="cash-kpi-card kpi-expense">
+            <span class="cash-kpi-label">Uscite Pagate</span>
+            <span class="cash-kpi-value" id="cash-kpi-expense">&euro; 0,00</span>
+            <span class="cash-kpi-sub" id="cash-kpi-expense-sub">0 uscite</span>
+          </div>
+          <div class="cash-kpi-card kpi-pending">
+            <span class="cash-kpi-label">In Sospeso</span>
+            <span class="cash-kpi-value" id="cash-kpi-pending">&euro; 0,00</span>
+            <span class="cash-kpi-sub" id="cash-kpi-pending-sub">Da incassare: &euro; 0,00 &bull; Da pagare: &euro; 0,00</span>
+          </div>
+        </div>
+
+        <!-- Filtri Movimenti -->
+        <div class="cash-filters-bar">
+          <div class="calendar-filter-chips" id="cash-type-chips">
+            <button type="button" class="cal-filter-chip active" data-type="all">Tutti</button>
+            <button type="button" class="cal-filter-chip" data-type="income">Entrate</button>
+            <button type="button" class="cal-filter-chip" data-type="expense">Uscite</button>
+            <button type="button" class="cal-filter-chip" data-type="pending">In sospeso</button>
+          </div>
+
+          <div class="cash-filters-controls">
+            <select id="cash-period-filter" class="cash-filter-select" aria-label="Filtra per periodo">
+              <option value="all">Tutti i periodi</option>
+              <option value="this_month">Mese corrente</option>
+              <option value="last_month">Mese scorso</option>
+              <option value="this_year">Anno corrente</option>
+            </select>
+
+            <select id="cash-method-filter" class="cash-filter-select" aria-label="Filtra per metodo di pagamento">
+              <option value="all">Tutti i metodi</option>
+              <option value="cash">Contanti</option>
+              <option value="bank_transfer">Bonifico</option>
+              <option value="card">Carta / POS</option>
+              <option value="other">Altro</option>
+            </select>
+
+            <input type="search" id="cash-search-input" class="cash-search-input" placeholder="Cerca descrizione, cliente, fattura...">
+          </div>
+        </div>
+
+        <!-- Tabella Movimenti -->
+        <div class="cash-table-wrap">
+          <table class="cash-table" id="cash-table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Descrizione &amp; Categoria</th>
+                <th>Cliente / Fornitore</th>
+                <th>Metodo</th>
+                <th>Stato</th>
+                <th class="text-right">Importo</th>
+                <th class="text-right">Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="cash-table-body"></tbody>
+          </table>
+
+          <div class="calendar-agenda-empty hidden" id="cash-table-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="2" y="5" width="20" height="14" rx="2"/>
+              <line x1="2" y1="10" x2="22" y2="10"/>
+            </svg>
+            <p>Nessun movimento contabile registrato per i filtri selezionati.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL ADMIN: REGISTRA / MODIFICA MOVIMENTO CASSA
+       ========================================================================= -->
+  <div id="modal-transaction" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="txn-modal-title">
+    <div class="modal-content modal-activity-content">
+      <button type="button" class="modal-close modal-close-corner" id="btn-close-txn-modal" aria-label="Chiudi finestra">&times;</button>
+
+      <div class="modal-icon-wrap cash-modal-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="5" width="20" height="14" rx="2"/>
+          <line x1="2" y1="10" x2="22" y2="10"/>
+        </svg>
+      </div>
+
+      <h2 id="txn-modal-title">Nuovo Movimento Cassa</h2>
+      <p class="modal-desc" id="txn-modal-subtitle">Registra un'entrata o un'uscita nella contabilità dello studio</p>
+
+      <form id="form-transaction" class="share-form" novalidate>
+        <div class="txn-type-switch" id="txn-type-switch">
+          <button type="button" class="txn-type-btn active-income" id="btn-txn-type-income" data-type="income">+ Entrata</button>
+          <button type="button" class="txn-type-btn" id="btn-txn-type-expense" data-type="expense">- Uscita</button>
+        </div>
+
+        <div class="form-group">
+          <label for="txn-description">Descrizione *</label>
+          <input type="text" id="txn-description" class="activity-plain-input" placeholder="es. Acconto Matrimonio Marco & Sara" maxlength="160" required>
+          <span class="field-error" id="txn-description-error"></span>
+        </div>
+
+        <div class="activity-form-grid-2">
+          <div class="form-group">
+            <label for="txn-amount">Importo (&euro;) *</label>
+            <input type="number" id="txn-amount" class="activity-plain-input" step="0.01" min="0.01" placeholder="0.00" required>
+            <span class="field-error" id="txn-amount-error"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="txn-date">Data *</label>
+            <input type="date" id="txn-date" class="activity-plain-input" required>
+            <span class="field-error" id="txn-date-error"></span>
+          </div>
+        </div>
+
+        <div class="activity-form-grid-2">
+          <div class="form-group">
+            <label for="txn-category">Categoria</label>
+            <input type="text" id="txn-category" class="activity-plain-input" list="txn-category-presets" placeholder="es. Servizio Fotografico" maxlength="60">
+            <datalist id="txn-category-presets">
+              <option value="Servizio Fotografico"></option>
+              <option value="Acconto"></option>
+              <option value="Saldo"></option>
+              <option value="Stampe & Album"></option>
+              <option value="Video"></option>
+              <option value="Attrezzatura"></option>
+              <option value="Software & Abbonamenti"></option>
+              <option value="Trasferte"></option>
+              <option value="Tasse & Fisco"></option>
+              <option value="Studio & Affitto"></option>
+              <option value="Altro"></option>
+            </datalist>
+          </div>
+
+          <div class="form-group">
+            <label for="txn-method">Metodo di Pagamento</label>
+            <select id="txn-method" class="activity-select">
+              <option value="bank_transfer">Bonifico</option>
+              <option value="cash">Contanti</option>
+              <option value="card">Carta / POS</option>
+              <option value="other">Altro</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="activity-form-grid-2">
+          <div class="form-group">
+            <label for="txn-status">Stato</label>
+            <select id="txn-status" class="activity-select">
+              <option value="paid">Incassato / Pagato</option>
+              <option value="pending">In sospeso (Da saldare)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="txn-invoice-ref">Rif. Fattura / Ricevuta</label>
+            <input type="text" id="txn-invoice-ref" class="activity-plain-input" placeholder="es. FT-2026/042" maxlength="60">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="txn-client">Cliente / Fornitore</label>
+          <input type="text" id="txn-client" class="activity-plain-input" placeholder="es. Marco & Sara / Laboratorio Stampa" maxlength="100">
+        </div>
+
+        <div class="form-group">
+          <label for="txn-notes">Note</label>
+          <textarea id="txn-notes" class="activity-textarea" rows="2" maxlength="1000" placeholder="Eventuali dettagli fiscali, scadenze o promemoria..."></textarea>
+        </div>
+
+        <div class="modal-actions modal-activity-actions">
+          <button type="button" class="btn-danger hidden" id="btn-delete-txn">Elimina</button>
+          <div class="modal-activity-actions-right">
+            <button type="button" class="btn-secondary" id="btn-cancel-txn-modal">Annulla</button>
+            <button type="submit" class="btn-primary" id="btn-save-txn">
+              <span class="btn-text">Salva Movimento</span>
+              <span class="spinner" aria-hidden="true"></span>
+            </button>
+          </div>
         </div>
       </form>
     </div>

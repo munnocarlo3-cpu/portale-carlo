@@ -9,3 +9,5 @@ uploads/
 users.json
 albums.json
 photos.json
+activities.json
+transactions.json
