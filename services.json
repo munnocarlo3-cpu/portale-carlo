@@ -1,0 +1,13 @@
+[
+  {
+    "id": "srv_242ace928172f00b",
+    "name": "Foto con Drone",
+    "price": 5000,
+    "priceUnit": "all'ora",
+    "category": "Video & Drone",
+    "description": "Paga",
+    "active": true,
+    "createdAt": "2026-11-23T08:58:09.776Z",
+    "updatedAt": "2026-11-23T08:58:09.776Z"
+  }
+]

@@ -35,7 +35,39 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
     </div>
+
+    <!-- Controlli Musica di Sottofondo (visibile se ci sono brani attivi) -->
+    <div class="bg-music-section hidden" id="bg-music-widget">
+      <span class="bg-widget-divider" aria-hidden="true"></span>
+      <div class="bg-music-info">
+        <svg class="bg-music-note-icon" id="bg-music-note-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18V5l12-2v13"/>
+          <circle cx="6" cy="18" r="3"/>
+          <circle cx="18" cy="16" r="3"/>
+        </svg>
+        <span id="bg-music-title" class="bg-music-title">Musica di sottofondo</span>
+      </div>
+      <div class="bg-control-btns">
+        <button type="button" class="btn-bg-icon" id="btn-music-prev" title="Brano Precedente">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+        </button>
+        <button type="button" class="btn-bg-icon btn-music-play-toggle" id="btn-music-toggle" title="Riproduci / Pausa musica">
+          <svg id="icon-music-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <svg id="icon-music-pause" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        </button>
+        <button type="button" class="btn-bg-icon" id="btn-music-next" title="Brano Successivo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+        </button>
+        <button type="button" class="btn-bg-icon" id="btn-music-mute" title="Muto / Attiva audio">
+          <svg id="icon-music-vol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          <svg id="icon-music-muted" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+        </button>
+        <input type="range" id="music-volume-slider" class="music-volume-slider" min="0" max="100" value="35" aria-label="Volume musica di sottofondo" title="Volume">
+      </div>
+    </div>
   </div>
+  <audio id="bg-audio-player" preload="none"></audio>
+  <div id="bg-youtube-player" class="yt-hidden-player" aria-hidden="true"></div>
 
   <!-- Contenitore Notifiche Toast -->
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
@@ -173,6 +205,23 @@
               <line x1="2" y1="10" x2="22" y2="10"/>
             </svg>
             Gestione Cassa
+          </button>
+
+          <button type="button" class="btn-secondary" id="btn-open-services-admin" title="Gestisci la lista dei servizi offerti e relativi prezzi">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+              <line x1="7" y1="7" x2="7.01" y2="7"/>
+            </svg>
+            Servizi Offerti
+          </button>
+
+          <button type="button" class="btn-secondary" id="btn-open-music-admin" title="Gestisci le musiche di sottofondo del portale">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+              <path d="M9 18V5l12-2v13"/>
+              <circle cx="6" cy="18" r="3"/>
+              <circle cx="18" cy="16" r="3"/>
+            </svg>
+            Musiche
           </button>
 
           <button type="button" class="btn-secondary" id="btn-refresh-admin" title="Aggiorna elenco album e foto">
@@ -451,6 +500,17 @@
           <span class="spinner" aria-hidden="true"></span>
         </button>
       </form>
+
+      <div id="client-login-services-wrap" class="client-login-services-wrap hidden">
+        <button type="button" class="btn-secondary btn-client-services-cta" id="btn-client-login-services">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+            <line x1="7" y1="7" x2="7.01" y2="7"/>
+          </svg>
+          <span>Servizi Offerti &amp; Listino Prezzi</span>
+          <span class="services-count-pill" id="client-login-services-count">0</span>
+        </button>
+      </div>
     </section>
 
     <!-- =======================================================================
@@ -476,6 +536,14 @@
         </div>
 
         <div class="dashboard-top-actions">
+          <button type="button" class="btn-secondary btn-client-services-nav hidden" id="btn-client-services-open" title="Visualizza i servizi fotografici offerti e i prezzi">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-icon">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+              <line x1="7" y1="7" x2="7.01" y2="7"/>
+            </svg>
+            <span>Servizi Offerti</span>
+            <span class="services-count-pill" id="client-services-badge">0</span>
+          </button>
           <button type="button" class="btn-secondary" id="btn-client-slideshow-open">
             Visualizza Slideshow
           </button>
@@ -1074,6 +1142,272 @@
               </button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL ADMIN: GESTIONE SERVIZI OFFERTI & LISTINO PREZZI
+       ========================================================================= -->
+  <div id="modal-services-manager" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="services-manager-title">
+    <div class="studio-modal-content cash-manager-modal">
+      <div class="studio-modal-header">
+        <div class="studio-title-wrap">
+          <div class="studio-badge-icon services-icon-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+              <line x1="7" y1="7" x2="7.01" y2="7"/>
+            </svg>
+          </div>
+          <div>
+            <h2 id="services-manager-title">Servizi Offerti &amp; Listino Prezzi</h2>
+            <p>Inserisci i servizi fotografici e i prezzi che compariranno nel link condiviso con i clienti</p>
+          </div>
+        </div>
+
+        <div class="cash-modal-header-right">
+          <button type="button" class="btn-primary-action btn-sm-action" id="btn-new-service">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="mini-icon">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span>Nuovo Servizio</span>
+          </button>
+          <button type="button" class="modal-close" id="btn-close-services-manager" aria-label="Chiudi gestione servizi">&times;</button>
+        </div>
+      </div>
+
+      <div class="studio-view active cash-modal-body">
+        <div class="cash-filters-bar">
+          <div class="calendar-filter-chips" id="services-status-chips">
+            <button type="button" class="cal-filter-chip active" data-filter="all">Tutti</button>
+            <button type="button" class="cal-filter-chip" data-filter="active">Visibili ai clienti</button>
+            <button type="button" class="cal-filter-chip" data-filter="hidden">Nascosti</button>
+          </div>
+
+          <div class="cash-filters-controls">
+            <span class="badge-count" id="admin-services-count">0 servizi</span>
+            <input type="search" id="services-search-input" class="cash-search-input" placeholder="Cerca servizio o categoria...">
+          </div>
+        </div>
+
+        <div class="services-admin-grid" id="admin-services-list"></div>
+
+        <div class="calendar-agenda-empty hidden" id="admin-services-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+            <line x1="7" y1="7" x2="7.01" y2="7"/>
+          </svg>
+          <p>Nessun servizio inserito. Clicca su <strong>Nuovo Servizio</strong> per creare il tuo listino prezzi.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL ADMIN: CREA / MODIFICA SERVIZIO OFFERTO
+       ========================================================================= -->
+  <div id="modal-service-form" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="service-form-title">
+    <div class="modal-content modal-activity-content">
+      <button type="button" class="modal-close modal-close-corner" id="btn-close-service-form" aria-label="Chiudi finestra">&times;</button>
+
+      <div class="modal-icon-wrap services-icon-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+          <line x1="7" y1="7" x2="7.01" y2="7"/>
+        </svg>
+      </div>
+
+      <h2 id="service-form-title">Nuovo Servizio</h2>
+      <p class="modal-desc" id="service-form-subtitle">Aggiungi un servizio e il relativo prezzo al listino visibile ai clienti</p>
+
+      <form id="form-service" class="share-form" novalidate>
+        <div class="form-group">
+          <label for="service-name">Nome Servizio *</label>
+          <input type="text" id="service-name" class="activity-plain-input" placeholder="es. Servizio Matrimonio Completo" maxlength="120" required>
+          <span class="field-error" id="service-name-error"></span>
+        </div>
+
+        <div class="activity-form-grid-2">
+          <div class="form-group">
+            <label for="service-price">Prezzo (&euro;) *</label>
+            <input type="number" id="service-price" class="activity-plain-input" step="0.01" min="0" placeholder="0.00" required>
+            <span class="field-error" id="service-price-error"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="service-price-unit">Unità / Nota Prezzo</label>
+            <input type="text" id="service-price-unit" class="activity-plain-input" list="service-unit-presets" placeholder="es. a servizio, all'ora..." maxlength="40">
+            <datalist id="service-unit-presets">
+              <option value="a servizio"></option>
+              <option value="a pacchetto"></option>
+              <option value="all'ora"></option>
+              <option value="a stampa"></option>
+              <option value="a pagina"></option>
+              <option value="a partire da"></option>
+            </datalist>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="service-category">Categoria</label>
+          <input type="text" id="service-category" class="activity-plain-input" list="service-category-presets" placeholder="es. Matrimoni, Stampe & Album..." maxlength="60">
+          <datalist id="service-category-presets">
+            <option value="Matrimoni"></option>
+            <option value="Cerimonie"></option>
+            <option value="Ritratti & Studio"></option>
+            <option value="Eventi"></option>
+            <option value="Stampe & Album"></option>
+            <option value="Video & Drone"></option>
+            <option value="Post-Produzione"></option>
+            <option value="Altro"></option>
+          </datalist>
+        </div>
+
+        <div class="form-group">
+          <label for="service-description">Descrizione (opzionale)</label>
+          <textarea id="service-description" class="activity-textarea" rows="3" maxlength="500" placeholder="Cosa include il servizio, tempi di consegna, numero di scatti..."></textarea>
+        </div>
+
+        <div class="share-toggle-row">
+          <label class="checkbox-container">
+            <input type="checkbox" id="service-active" checked>
+            <span class="checkmark"></span>
+            <span class="checkbox-label">Visibile ai clienti nel link galleria</span>
+          </label>
+        </div>
+
+        <div class="modal-actions modal-activity-actions">
+          <button type="button" class="btn-danger hidden" id="btn-delete-service">Elimina</button>
+          <div class="modal-activity-actions-right">
+            <button type="button" class="btn-secondary" id="btn-cancel-service-form">Annulla</button>
+            <button type="submit" class="btn-primary" id="btn-save-service">
+              <span class="btn-text">Salva Servizio</span>
+              <span class="spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL CLIENTE: SERVIZI OFFERTI & LISTINO PREZZI
+       ========================================================================= -->
+  <div id="modal-client-services" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="client-services-title">
+    <div class="studio-modal-content client-services-modal">
+      <div class="studio-modal-header">
+        <div class="studio-title-wrap">
+          <div class="studio-badge-icon services-icon-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+              <line x1="7" y1="7" x2="7.01" y2="7"/>
+            </svg>
+          </div>
+          <div>
+            <h2 id="client-services-title">Servizi Offerti &amp; Listino Prezzi</h2>
+            <p>Scopri tutti i servizi fotografici, pacchetti e stampe disponibili presso lo studio</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" id="btn-close-client-services" aria-label="Chiudi listino servizi">&times;</button>
+      </div>
+
+      <div class="studio-view active cash-modal-body">
+        <div class="services-client-grid" id="client-services-list"></div>
+        <div class="calendar-agenda-empty hidden" id="client-services-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+            <line x1="7" y1="7" x2="7.01" y2="7"/>
+          </svg>
+          <p>Nessun servizio pubblicato al momento.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL ADMIN: GESTIONE MUSICHE DI SOTTOFONDO
+       ========================================================================= -->
+  <div id="modal-music-manager" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="music-manager-title">
+    <div class="studio-modal-content cash-manager-modal">
+      <div class="studio-modal-header">
+        <div class="studio-title-wrap">
+          <div class="studio-badge-icon music-icon-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 18V5l12-2v13"/>
+              <circle cx="6" cy="18" r="3"/>
+              <circle cx="18" cy="16" r="3"/>
+            </svg>
+          </div>
+          <div>
+            <h2 id="music-manager-title">Musiche di Sottofondo</h2>
+            <p>Carica file audio (MP3, WAV, OGG, M4A), aggiungi link diretti oppure incolla un link YouTube per la colonna sonora del portale e delle gallerie clienti</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" id="btn-close-music-manager" aria-label="Chiudi gestione musiche">&times;</button>
+      </div>
+
+      <div class="studio-view active cash-modal-body">
+        <form id="form-add-music" class="music-add-panel" novalidate>
+          <div class="music-source-tabs" id="music-source-tabs">
+            <button type="button" class="cal-filter-chip active" data-source="upload">Carica File Audio</button>
+            <button type="button" class="cal-filter-chip" data-source="url">Link Audio / YouTube</button>
+          </div>
+
+          <div class="activity-form-grid-2">
+            <div class="form-group">
+              <label for="music-title">Titolo Brano *</label>
+              <input type="text" id="music-title" class="activity-plain-input" placeholder="es. Piano Romantico" maxlength="120" required>
+              <span class="field-error" id="music-title-error"></span>
+            </div>
+
+            <div class="form-group">
+              <label for="music-artist">Artista / Autore</label>
+              <input type="text" id="music-artist" class="activity-plain-input" placeholder="es. Studio Soundtrack" maxlength="100">
+            </div>
+          </div>
+
+          <div class="form-group" id="music-upload-group">
+            <label for="music-file">File Audio * (MP3, WAV, OGG, M4A, AAC — max 15MB)</label>
+            <input type="file" id="music-file" class="activity-plain-input music-file-input" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.webm">
+            <span class="field-error" id="music-file-error"></span>
+          </div>
+
+          <div class="form-group hidden" id="music-url-group">
+            <label for="music-url">URL File Audio o Link YouTube (HTTPS) *</label>
+            <input type="url" id="music-url" class="activity-plain-input" placeholder="https://www.youtube.com/watch?v=... oppure https://esempio.com/brano.mp3" maxlength="1000">
+            <span class="field-error" id="music-url-error"></span>
+          </div>
+
+          <div class="music-add-footer">
+            <label class="checkbox-container">
+              <input type="checkbox" id="music-enabled" checked>
+              <span class="checkmark"></span>
+              <span class="checkbox-label">Attivo nella playlist di sottofondo</span>
+            </label>
+
+            <button type="submit" class="btn-primary-action btn-sm-action" id="btn-save-music">
+              <span class="btn-text">+ Aggiungi Brano</span>
+              <span class="spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+
+        <div class="music-list-header">
+          <h4>Playlist Brani</h4>
+          <span class="badge-count" id="admin-music-count">0 brani</span>
+        </div>
+
+        <div class="music-tracks-list" id="admin-music-list"></div>
+
+        <div class="calendar-agenda-empty hidden" id="admin-music-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M9 18V5l12-2v13"/>
+            <circle cx="6" cy="18" r="3"/>
+            <circle cx="18" cy="16" r="3"/>
+          </svg>
+          <p>Nessuna musica caricata. Aggiungi un file audio o un link diretto qui sopra per attivare il sottofondo musicale.</p>
         </div>
       </div>
     </div>

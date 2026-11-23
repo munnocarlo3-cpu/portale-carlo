@@ -124,6 +124,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     cashSearchQuery: '',
     editingTxnId: null,
     txnModalType: 'income',
+    services: [],
+    servicesFilter: 'all', // 'all' | 'active' | 'hidden'
+    servicesSearchQuery: '',
+    editingServiceId: null,
+    publicServices: [],
+    musicTracks: [],
+    musicSourceMode: 'upload', // 'upload' | 'url'
     selectedAlbumId: null,
     clientAlbum: null,
     clientPhotos: [],
@@ -147,6 +154,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnBgTogglePlay: document.getElementById('btn-bg-toggle-play'),
     iconBgPause: document.getElementById('icon-bg-pause'),
     iconBgPlay: document.getElementById('icon-bg-play'),
+
+    // Controlli Musica di Sottofondo
+    bgAudioPlayer: document.getElementById('bg-audio-player'),
+    bgMusicWidget: document.getElementById('bg-music-widget'),
+    bgMusicNoteIcon: document.getElementById('bg-music-note-icon'),
+    bgMusicTitle: document.getElementById('bg-music-title'),
+    btnMusicPrev: document.getElementById('btn-music-prev'),
+    btnMusicToggle: document.getElementById('btn-music-toggle'),
+    iconMusicPlay: document.getElementById('icon-music-play'),
+    iconMusicPause: document.getElementById('icon-music-pause'),
+    btnMusicNext: document.getElementById('btn-music-next'),
+    btnMusicMute: document.getElementById('btn-music-mute'),
+    iconMusicVol: document.getElementById('icon-music-vol'),
+    iconMusicMuted: document.getElementById('icon-music-muted'),
+    musicVolumeSlider: document.getElementById('music-volume-slider'),
 
     // Header & Toast
     toastContainer: document.getElementById('toast-container'),
@@ -207,6 +229,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     clientGalleryDesc: document.getElementById('client-gallery-desc'),
     clientGalleryCount: document.getElementById('client-gallery-count'),
     btnClientSlideshowOpen: document.getElementById('btn-client-slideshow-open'),
+    btnClientServicesOpen: document.getElementById('btn-client-services-open'),
+    clientServicesBadge: document.getElementById('client-services-badge'),
+    clientLoginServicesWrap: document.getElementById('client-login-services-wrap'),
+    btnClientLoginServices: document.getElementById('btn-client-login-services'),
+    clientLoginServicesCount: document.getElementById('client-login-services-count'),
     btnClientLogout: document.getElementById('btn-client-logout'),
     clientGalleryGrid: document.getElementById('client-gallery-grid'),
     clientGalleryEmpty: document.getElementById('client-gallery-empty'),
@@ -316,6 +343,58 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnDeleteTxn: document.getElementById('btn-delete-txn'),
     btnSaveTxn: document.getElementById('btn-save-txn'),
 
+    // Servizi Offerti (Admin & Cliente)
+    btnOpenServicesAdmin: document.getElementById('btn-open-services-admin'),
+    modalServicesManager: document.getElementById('modal-services-manager'),
+    btnCloseServicesManager: document.getElementById('btn-close-services-manager'),
+    btnNewService: document.getElementById('btn-new-service'),
+    servicesStatusChips: document.getElementById('services-status-chips'),
+    adminServicesCount: document.getElementById('admin-services-count'),
+    servicesSearchInput: document.getElementById('services-search-input'),
+    adminServicesList: document.getElementById('admin-services-list'),
+    adminServicesEmpty: document.getElementById('admin-services-empty'),
+    modalServiceForm: document.getElementById('modal-service-form'),
+    btnCloseServiceForm: document.getElementById('btn-close-service-form'),
+    btnCancelServiceForm: document.getElementById('btn-cancel-service-form'),
+    serviceFormTitle: document.getElementById('service-form-title'),
+    serviceFormSubtitle: document.getElementById('service-form-subtitle'),
+    formService: document.getElementById('form-service'),
+    serviceName: document.getElementById('service-name'),
+    serviceNameError: document.getElementById('service-name-error'),
+    servicePrice: document.getElementById('service-price'),
+    servicePriceError: document.getElementById('service-price-error'),
+    servicePriceUnit: document.getElementById('service-price-unit'),
+    serviceCategory: document.getElementById('service-category'),
+    serviceDescription: document.getElementById('service-description'),
+    serviceActive: document.getElementById('service-active'),
+    btnDeleteService: document.getElementById('btn-delete-service'),
+    btnSaveService: document.getElementById('btn-save-service'),
+    modalClientServices: document.getElementById('modal-client-services'),
+    btnCloseClientServices: document.getElementById('btn-close-client-services'),
+    clientServicesList: document.getElementById('client-services-list'),
+    clientServicesEmpty: document.getElementById('client-services-empty'),
+
+    // Musiche di Sottofondo (Admin)
+    btnOpenMusicAdmin: document.getElementById('btn-open-music-admin'),
+    modalMusicManager: document.getElementById('modal-music-manager'),
+    btnCloseMusicManager: document.getElementById('btn-close-music-manager'),
+    formAddMusic: document.getElementById('form-add-music'),
+    musicSourceTabs: document.getElementById('music-source-tabs'),
+    musicTitle: document.getElementById('music-title'),
+    musicTitleError: document.getElementById('music-title-error'),
+    musicArtist: document.getElementById('music-artist'),
+    musicUploadGroup: document.getElementById('music-upload-group'),
+    musicFile: document.getElementById('music-file'),
+    musicFileError: document.getElementById('music-file-error'),
+    musicUrlGroup: document.getElementById('music-url-group'),
+    musicUrl: document.getElementById('music-url'),
+    musicUrlError: document.getElementById('music-url-error'),
+    musicEnabled: document.getElementById('music-enabled'),
+    btnSaveMusic: document.getElementById('btn-save-music'),
+    adminMusicCount: document.getElementById('admin-music-count'),
+    adminMusicList: document.getElementById('admin-music-list'),
+    adminMusicEmpty: document.getElementById('admin-music-empty'),
+
     // Lightbox
     modalLightbox: document.getElementById('modal-lightbox'),
     lightboxCardContainer: document.getElementById('lightbox-card-container'),
@@ -378,7 +457,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   function sanitizeMediaUrl(url) {
     if (!url || typeof url !== 'string') return '';
     const trimmed = url.trim();
-    if (trimmed.startsWith('/api/media/') || trimmed.startsWith('https://')) {
+    if (
+      trimmed.startsWith('/api/media/') ||
+      trimmed.startsWith('/api/music/') ||
+      trimmed.startsWith('https://')
+    ) {
       return trimmed.replace(/["'()\\\r\n]/g, '');
     }
     return '';
@@ -616,6 +699,506 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // =========================================================================
+  // GESTORE MUSICA DI SOTTOFONDO (HTML5 AUDIO + YOUTUBE IFRAME PLAYER API)
+  // =========================================================================
+  const YOUTUBE_HOSTS = new Set([
+    'youtube.com',
+    'www.youtube.com',
+    'm.youtube.com',
+    'music.youtube.com',
+    'youtu.be',
+    'www.youtu.be',
+    'youtube-nocookie.com',
+    'www.youtube-nocookie.com'
+  ]);
+  const YOUTUBE_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
+
+  function isYouTubeUrlHost(rawUrl) {
+    try {
+      const parsed = new URL(String(rawUrl || '').trim());
+      return YOUTUBE_HOSTS.has(parsed.hostname.toLowerCase());
+    } catch {
+      return false;
+    }
+  }
+
+  function extractYouTubeVideoId(rawUrl) {
+    const trimmed = String(rawUrl || '').trim();
+    if (!trimmed) return '';
+    let parsed;
+    try {
+      parsed = new URL(trimmed);
+    } catch {
+      return '';
+    }
+    const host = parsed.hostname.toLowerCase();
+    if (!YOUTUBE_HOSTS.has(host)) return '';
+
+    let candidate = '';
+    if (host === 'youtu.be' || host === 'www.youtu.be') {
+      candidate = parsed.pathname.split('/').filter(Boolean)[0] || '';
+    } else if (parsed.pathname === '/watch' || parsed.pathname === '/watch/') {
+      candidate = parsed.searchParams.get('v') || '';
+    } else {
+      const match = parsed.pathname.match(/^\/(?:embed|shorts|live|v)\/([^/?#]+)/);
+      candidate = match ? match[1] : '';
+    }
+    return YOUTUBE_ID_REGEX.test(candidate) ? candidate : '';
+  }
+
+  function getTrackYouTubeId(track) {
+    if (!track) return '';
+    if (track.youtubeVideoId && YOUTUBE_ID_REGEX.test(track.youtubeVideoId)) {
+      return track.youtubeVideoId;
+    }
+    return extractYouTubeVideoId(track.url || track.streamUrl || '');
+  }
+
+  const musicPlayer = {
+    playlist: [],
+    currentIndex: 0,
+    currentTrackId: null,
+    activeEngine: null, // 'audio' | 'youtube' | null
+    isPlaying: false,
+    isMuted: false,
+    volume: 0.35,
+    ytPlayer: null,
+    ytReady: false,
+    ytApiPromise: null,
+    ytPendingVideoId: '',
+    ytPendingAutoplay: false,
+
+    async init() {
+      const savedVol = Number(localStorage.getItem('bg_music_volume'));
+      if (Number.isFinite(savedVol) && savedVol >= 0 && savedVol <= 1) {
+        this.volume = savedVol;
+      }
+      if (dom.musicVolumeSlider) {
+        dom.musicVolumeSlider.value = String(Math.round(this.volume * 100));
+      }
+      if (dom.bgAudioPlayer) {
+        dom.bgAudioPlayer.volume = this.volume;
+      }
+      this.bindEvents();
+      await this.refreshFromServer();
+    },
+
+    loadYouTubeIframeApi() {
+      if (window.YT && typeof window.YT.Player === 'function') {
+        return Promise.resolve(window.YT);
+      }
+      if (this.ytApiPromise) return this.ytApiPromise;
+
+      this.ytApiPromise = new Promise((resolve, reject) => {
+        const prevReady = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => {
+          if (typeof prevReady === 'function') {
+            try { prevReady(); } catch {}
+          }
+          resolve(window.YT);
+        };
+
+        const existingScript = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
+        if (!existingScript) {
+          const script = document.createElement('script');
+          script.src = 'https://www.youtube.com/iframe_api';
+          script.async = true;
+          script.onerror = () => {
+            this.ytApiPromise = null;
+            reject(new Error('Impossibile caricare la YouTube IFrame Player API.'));
+          };
+          document.head.appendChild(script);
+        }
+      });
+
+      return this.ytApiPromise;
+    },
+
+    syncYouTubeVolume() {
+      if (!this.ytPlayer || !this.ytReady) return;
+      try {
+        this.ytPlayer.setVolume(Math.round(this.volume * 100));
+        if (this.isMuted || this.volume === 0) {
+          this.ytPlayer.mute();
+        } else {
+          this.ytPlayer.unMute();
+        }
+      } catch {}
+    },
+
+    async loadYouTubeVideo(videoId, autoplay = false) {
+      if (!videoId) return;
+      this.ytPendingVideoId = videoId;
+      this.ytPendingAutoplay = Boolean(autoplay);
+
+      try {
+        const YT = await this.loadYouTubeIframeApi();
+        if (this.activeEngine !== 'youtube' || this.ytPendingVideoId !== videoId) return;
+
+        if (this.ytPlayer && this.ytReady) {
+          this.syncYouTubeVolume();
+          if (autoplay) {
+            this.ytPlayer.loadVideoById(videoId);
+          } else {
+            this.ytPlayer.cueVideoById(videoId);
+          }
+          return;
+        }
+
+        if (!this.ytPlayer) {
+          const container = document.getElementById('bg-youtube-player');
+          if (!container) return;
+          this.ytPlayer = new YT.Player('bg-youtube-player', {
+            height: '200',
+            width: '200',
+            videoId,
+            playerVars: {
+              autoplay: autoplay ? 1 : 0,
+              controls: 0,
+              disablekb: 1,
+              fs: 0,
+              modestbranding: 1,
+              playsinline: 1,
+              rel: 0,
+              origin: window.location.origin
+            },
+            events: {
+              onReady: () => {
+                this.ytReady = true;
+                this.syncYouTubeVolume();
+                if (this.activeEngine === 'youtube' && this.ytPendingVideoId) {
+                  if (this.ytPendingVideoId !== videoId) {
+                    if (this.ytPendingAutoplay) {
+                      this.ytPlayer.loadVideoById(this.ytPendingVideoId);
+                    } else {
+                      this.ytPlayer.cueVideoById(this.ytPendingVideoId);
+                    }
+                  } else if (this.ytPendingAutoplay) {
+                    this.ytPlayer.playVideo();
+                  }
+                }
+              },
+              onStateChange: (event) => {
+                if (this.activeEngine !== 'youtube') return;
+                if (event.data === YT.PlayerState.PLAYING) {
+                  this.isPlaying = true;
+                  this.updateUI();
+                  renderAdminMusic();
+                } else if (event.data === YT.PlayerState.PAUSED) {
+                  this.isPlaying = false;
+                  this.updateUI();
+                  renderAdminMusic();
+                } else if (event.data === YT.PlayerState.ENDED) {
+                  if (this.playlist.length > 1) {
+                    this.loadTrack(this.currentIndex + 1, true);
+                  } else if (this.playlist.length === 1) {
+                    this.ytPlayer.seekTo(0, true);
+                    this.ytPlayer.playVideo();
+                  }
+                }
+              },
+              onError: (event) => {
+                if (this.activeEngine !== 'youtube') return;
+                this.isPlaying = false;
+                this.updateUI();
+                renderAdminMusic();
+                const code = Number(event?.data);
+                const msg = (code === 101 || code === 150)
+                  ? 'Il proprietario di questo video YouTube ha disabilitato la riproduzione incorporata.'
+                  : (code === 100
+                    ? 'Video YouTube non trovato o privato.'
+                    : 'Impossibile riprodurre questo video YouTube.');
+                showToast('error', 'Errore YouTube', msg);
+              }
+            }
+          });
+        }
+      } catch (err) {
+        this.isPlaying = false;
+        this.updateUI();
+        renderAdminMusic();
+        if (autoplay) {
+          showToast('error', 'Errore YouTube', err?.message || 'Impossibile avviare il player YouTube.');
+        }
+      }
+    },
+
+    pauseOtherEngines(targetEngine) {
+      if (targetEngine !== 'audio' && dom.bgAudioPlayer) {
+        dom.bgAudioPlayer.pause();
+        dom.bgAudioPlayer.removeAttribute('src');
+        dom.bgAudioPlayer.load();
+      }
+      if (targetEngine !== 'youtube' && this.ytPlayer && this.ytReady) {
+        try {
+          this.ytPlayer.pauseVideo();
+        } catch {}
+      }
+    },
+
+    async refreshFromServer() {
+      try {
+        const res = await fetch('/api/public/music');
+        if (res.ok) {
+          const data = await res.json();
+          const tracks = Array.isArray(data.tracks) ? data.tracks : [];
+          this.playlist = tracks;
+          if (this.playlist.length === 0) {
+            this.stop();
+            dom.bgMusicWidget?.classList.add('hidden');
+            return;
+          }
+          dom.bgMusicWidget?.classList.remove('hidden');
+          const stillIdx = this.currentTrackId
+            ? this.playlist.findIndex(t => t.id === this.currentTrackId)
+            : -1;
+          if (stillIdx !== -1) {
+            this.currentIndex = stillIdx;
+          } else {
+            this.currentIndex = 0;
+            this.loadTrack(0, false);
+          }
+          this.updateUI();
+        }
+      } catch {
+        // Ignora errori di rete temporanei
+      }
+    },
+
+    loadTrack(index, autoplay = false) {
+      if (!this.playlist.length) return;
+      this.currentIndex = (index + this.playlist.length) % this.playlist.length;
+      const track = this.playlist[this.currentIndex];
+      const ytId = getTrackYouTubeId(track);
+
+      if (ytId) {
+        this.pauseOtherEngines('youtube');
+        this.activeEngine = 'youtube';
+        this.currentTrackId = track.id;
+        this.updateUI();
+        this.loadYouTubeVideo(ytId, autoplay);
+        return;
+      }
+
+      if (!dom.bgAudioPlayer) return;
+      const safeUrl = sanitizeMediaUrl(track.streamUrl || track.url);
+      if (!safeUrl) return;
+      this.pauseOtherEngines('audio');
+      this.activeEngine = 'audio';
+      this.currentTrackId = track.id;
+      dom.bgAudioPlayer.src = safeUrl;
+      dom.bgAudioPlayer.volume = this.isMuted ? 0 : this.volume;
+      this.updateUI();
+      if (autoplay) {
+        this.play();
+      }
+    },
+
+    async play() {
+      if (!this.activeEngine) {
+        if (this.playlist.length === 0) return;
+        this.loadTrack(this.currentIndex, true);
+        return;
+      }
+
+      if (this.activeEngine === 'youtube') {
+        this.ytPendingAutoplay = true;
+        if (this.ytPlayer && this.ytReady) {
+          try {
+            this.syncYouTubeVolume();
+            this.ytPlayer.playVideo();
+            this.isPlaying = true;
+            this.updateUI();
+            renderAdminMusic();
+          } catch {
+            this.isPlaying = false;
+            this.updateUI();
+          }
+        } else if (this.ytPendingVideoId) {
+          await this.loadYouTubeVideo(this.ytPendingVideoId, true);
+        }
+        return;
+      }
+
+      if (!dom.bgAudioPlayer) return;
+      if (!dom.bgAudioPlayer.src) {
+        if (this.playlist.length === 0) return;
+        this.loadTrack(this.currentIndex, false);
+      }
+      try {
+        await dom.bgAudioPlayer.play();
+        this.isPlaying = true;
+        this.updateUI();
+        renderAdminMusic();
+      } catch {
+        this.isPlaying = false;
+        this.updateUI();
+      }
+    },
+
+    pause() {
+      if (this.activeEngine === 'youtube' && this.ytPlayer && this.ytReady) {
+        try {
+          this.ytPlayer.pauseVideo();
+        } catch {}
+        this.ytPendingAutoplay = false;
+      } else if (dom.bgAudioPlayer) {
+        dom.bgAudioPlayer.pause();
+      }
+      this.isPlaying = false;
+      this.updateUI();
+      renderAdminMusic();
+    },
+
+    stop() {
+      if (dom.bgAudioPlayer) {
+        dom.bgAudioPlayer.pause();
+        dom.bgAudioPlayer.removeAttribute('src');
+        dom.bgAudioPlayer.load();
+      }
+      if (this.ytPlayer && this.ytReady) {
+        try {
+          this.ytPlayer.stopVideo();
+        } catch {}
+      }
+      this.ytPendingVideoId = '';
+      this.ytPendingAutoplay = false;
+      this.activeEngine = null;
+      this.isPlaying = false;
+      this.currentTrackId = null;
+      this.updateUI();
+      renderAdminMusic();
+    },
+
+    togglePlay() {
+      if (this.isPlaying) {
+        this.pause();
+      } else {
+        this.play();
+      }
+    },
+
+    previewTrack(track) {
+      if (!track) return;
+      if (this.currentTrackId === track.id && this.isPlaying) {
+        this.pause();
+        return;
+      }
+
+      const idx = this.playlist.findIndex(t => t.id === track.id);
+      if (idx !== -1) this.currentIndex = idx;
+
+      const ytId = getTrackYouTubeId(track);
+      if (ytId) {
+        this.pauseOtherEngines('youtube');
+        this.activeEngine = 'youtube';
+        this.currentTrackId = track.id;
+        if (dom.bgMusicTitle) {
+          dom.bgMusicTitle.textContent = track.artist ? `${track.title} • ${track.artist}` : track.title;
+        }
+        this.updateUI();
+        this.loadYouTubeVideo(ytId, true);
+        return;
+      }
+
+      if (!dom.bgAudioPlayer) return;
+      const safeUrl = sanitizeMediaUrl(track.streamUrl || track.url);
+      if (!safeUrl) return;
+      this.pauseOtherEngines('audio');
+      this.activeEngine = 'audio';
+      this.currentTrackId = track.id;
+      dom.bgAudioPlayer.src = safeUrl;
+      dom.bgAudioPlayer.volume = this.isMuted ? 0 : this.volume;
+      if (dom.bgMusicTitle) {
+        dom.bgMusicTitle.textContent = track.artist ? `${track.title} • ${track.artist}` : track.title;
+      }
+      this.play();
+    },
+
+    next() {
+      if (!this.playlist.length) return;
+      this.loadTrack(this.currentIndex + 1, this.isPlaying);
+    },
+
+    prev() {
+      if (!this.playlist.length) return;
+      this.loadTrack(this.currentIndex - 1, this.isPlaying);
+    },
+
+    toggleMute() {
+      this.isMuted = !this.isMuted;
+      if (dom.bgAudioPlayer) {
+        dom.bgAudioPlayer.volume = this.isMuted ? 0 : this.volume;
+      }
+      this.syncYouTubeVolume();
+      this.updateUI();
+    },
+
+    setVolume(val) {
+      const clamped = Math.max(0, Math.min(1, Number(val) || 0));
+      this.volume = clamped;
+      this.isMuted = clamped === 0;
+      localStorage.setItem('bg_music_volume', String(clamped));
+      if (dom.bgAudioPlayer) {
+        dom.bgAudioPlayer.volume = clamped;
+      }
+      this.syncYouTubeVolume();
+      this.updateUI();
+    },
+
+    updateUI() {
+      const activeTrack =
+        this.playlist.find(t => t.id === this.currentTrackId) ||
+        this.playlist[this.currentIndex] ||
+        null;
+      if (dom.bgMusicTitle) {
+        dom.bgMusicTitle.textContent = activeTrack
+          ? (activeTrack.artist ? `${activeTrack.title} • ${activeTrack.artist}` : activeTrack.title)
+          : 'Musica di sottofondo';
+      }
+      dom.iconMusicPlay?.classList.toggle('hidden', this.isPlaying);
+      dom.iconMusicPause?.classList.toggle('hidden', !this.isPlaying);
+      dom.btnMusicToggle?.classList.toggle('is-playing', this.isPlaying);
+      dom.bgMusicNoteIcon?.classList.toggle('is-playing', this.isPlaying);
+      dom.iconMusicVol?.classList.toggle('hidden', this.isMuted || this.volume === 0);
+      dom.iconMusicMuted?.classList.toggle('hidden', !(this.isMuted || this.volume === 0));
+    },
+
+    bindEvents() {
+      dom.btnMusicToggle?.addEventListener('click', () => this.togglePlay());
+      dom.btnMusicNext?.addEventListener('click', () => this.next());
+      dom.btnMusicPrev?.addEventListener('click', () => this.prev());
+      dom.btnMusicMute?.addEventListener('click', () => this.toggleMute());
+      dom.musicVolumeSlider?.addEventListener('input', () => {
+        this.setVolume(Number(dom.musicVolumeSlider.value) / 100);
+      });
+      dom.bgAudioPlayer?.addEventListener('ended', () => {
+        if (this.activeEngine !== 'audio') return;
+        if (this.playlist.length > 1) {
+          this.loadTrack(this.currentIndex + 1, true);
+        } else if (this.playlist.length === 1) {
+          dom.bgAudioPlayer.currentTime = 0;
+          this.play();
+        }
+      });
+      dom.bgAudioPlayer?.addEventListener('error', () => {
+        if (this.activeEngine !== 'audio') return;
+        const wasPlaying = this.isPlaying;
+        this.isPlaying = false;
+        this.updateUI();
+        renderAdminMusic();
+        if (wasPlaying) {
+          showToast('error', 'Errore Audio', 'Impossibile riprodurre questo brano audio.');
+        }
+      });
+      // Pausa automatica della musica se l'utente avvia un video nel Lightbox
+      dom.lightboxVideo?.addEventListener('play', () => {
+        if (this.isPlaying) this.pause();
+      });
+    }
+  };
+
+  // =========================================================================
   // GESTIONE VISTE & STORAGE TOKEN SEPARATI PER ADMIN / CLIENTE
   // =========================================================================
   function hideAllMainViews() {
@@ -734,18 +1317,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function loadAdminData() {
     try {
-      const [albumsRes, photosRes, activitiesRes, transactionsRes] = await Promise.all([
+      const [albumsRes, photosRes, activitiesRes, transactionsRes, servicesRes, musicRes] = await Promise.all([
         fetch('/api/admin/albums', { headers: getAuthHeaders() }),
         fetch('/api/admin/photos', { headers: getAuthHeaders() }),
         fetch('/api/admin/activities', { headers: getAuthHeaders() }),
-        fetch('/api/admin/transactions', { headers: getAuthHeaders() })
+        fetch('/api/admin/transactions', { headers: getAuthHeaders() }),
+        fetch('/api/admin/services', { headers: getAuthHeaders() }),
+        fetch('/api/admin/music', { headers: getAuthHeaders() })
       ]);
 
       if (
         albumsRes.status === 401 || albumsRes.status === 403 ||
         photosRes.status === 401 || photosRes.status === 403 ||
         activitiesRes.status === 401 || activitiesRes.status === 403 ||
-        transactionsRes.status === 401 || transactionsRes.status === 403
+        transactionsRes.status === 401 || transactionsRes.status === 403 ||
+        servicesRes.status === 401 || servicesRes.status === 403 ||
+        musicRes.status === 401 || musicRes.status === 403
       ) {
         await performAdminLogout({ expired: true });
         return;
@@ -766,6 +1353,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (transactionsRes.ok) {
         const txnData = await transactionsRes.json();
         state.transactions = txnData.transactions || [];
+      }
+      if (servicesRes.ok) {
+        const srvData = await servicesRes.json();
+        state.services = srvData.services || [];
+      }
+      if (musicRes.ok) {
+        const musData = await musicRes.json();
+        state.musicTracks = musData.tracks || [];
       }
 
       if (state.selectedAlbumId && !state.albums.some(a => a.id === state.selectedAlbumId)) {
@@ -795,6 +1390,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     renderAdminCalendar();
     renderAdminCash();
+    renderAdminServices();
+    renderAdminMusic();
     renderAdminAlbumChips();
     renderAdminAlbumCards();
     renderAdminPhotoGrid();
@@ -1531,6 +2128,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Nasconde completamente il badge di stato backend Admin in vista cliente
     dom.statusBadge.classList.add('hidden');
     dom.btnLogoutHeader.classList.add('hidden');
+
+    loadPublicServices();
 
     const shareToken = state.shareToken;
     try {
@@ -3427,6 +4026,688 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // =========================================================================
+  // SERVIZI OFFERTI & LISTINO PREZZI (ADMIN + CLIENTE)
+  // =========================================================================
+  function formatServicePrice(price) {
+    const num = Number(price) || 0;
+    if (num === 0) return 'Su preventivo';
+    return formatEuro(num);
+  }
+
+  function sortServicesClient(list) {
+    return [...list].sort((a, b) => {
+      const catCmp = String(a.category || '').localeCompare(String(b.category || ''), 'it');
+      if (catCmp !== 0) return catCmp;
+      return String(a.name || '').localeCompare(String(b.name || ''), 'it');
+    });
+  }
+
+  function getFilteredAdminServices() {
+    const query = String(state.servicesSearchQuery || '').trim().toLowerCase();
+    return state.services.filter((srv) => {
+      if (state.servicesFilter === 'active' && srv.active === false) return false;
+      if (state.servicesFilter === 'hidden' && srv.active !== false) return false;
+      if (query) {
+        const haystack = [srv.name, srv.category, srv.description, srv.priceUnit]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderAdminServices() {
+    if (!dom.adminServicesList) return;
+
+    dom.servicesStatusChips?.querySelectorAll('.cal-filter-chip').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.filter === state.servicesFilter);
+    });
+
+    const filtered = sortServicesClient(getFilteredAdminServices());
+    if (dom.adminServicesCount) {
+      dom.adminServicesCount.textContent = `${state.services.length} ${state.services.length === 1 ? 'servizio' : 'servizi'}`;
+    }
+
+    dom.adminServicesList.innerHTML = '';
+    if (filtered.length === 0) {
+      dom.adminServicesEmpty?.classList.remove('hidden');
+      return;
+    }
+    dom.adminServicesEmpty?.classList.add('hidden');
+
+    filtered.forEach((srv) => {
+      const card = document.createElement('div');
+      card.className = `service-card${srv.active === false ? ' is-hidden-service' : ''}`;
+
+      const top = document.createElement('div');
+      top.className = 'service-card-top';
+
+      const titleWrap = document.createElement('div');
+      titleWrap.className = 'service-card-title-wrap';
+      titleWrap.innerHTML = `
+        <span class="cash-cat-pill">${escapeHtml(srv.category || 'Servizio Fotografico')}</span>
+        <div class="service-card-name">${escapeHtml(srv.name)}</div>
+      `;
+
+      const priceBox = document.createElement('div');
+      priceBox.className = 'service-price-box';
+      priceBox.innerHTML = `
+        <span class="service-price-val">${escapeHtml(formatServicePrice(srv.price))}</span>
+        ${srv.priceUnit ? `<span class="service-price-unit">${escapeHtml(srv.priceUnit)}</span>` : ''}
+      `;
+
+      top.appendChild(titleWrap);
+      top.appendChild(priceBox);
+      card.appendChild(top);
+
+      if (srv.description) {
+        const desc = document.createElement('p');
+        desc.className = 'service-card-desc';
+        desc.textContent = srv.description;
+        card.appendChild(desc);
+      }
+
+      const footer = document.createElement('div');
+      footer.className = 'service-card-footer';
+
+      const visBtn = document.createElement('button');
+      visBtn.type = 'button';
+      visBtn.className = `cash-status-pill ${srv.active === false ? 'pending' : 'paid'}`;
+      visBtn.textContent = srv.active === false ? 'Nascosto' : 'Visibile ai clienti';
+      visBtn.title = 'Clicca per mostrare o nascondere questo servizio nel link cliente';
+      visBtn.addEventListener('click', () => toggleServiceActive(srv));
+
+      const actions = document.createElement('div');
+      actions.className = 'cash-row-actions';
+
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'btn-activity-mini btn-edit-mini';
+      editBtn.textContent = 'Modifica';
+      editBtn.addEventListener('click', () => openServiceFormModal(srv));
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'btn-activity-mini btn-delete-mini';
+      delBtn.textContent = 'Elimina';
+      delBtn.addEventListener('click', () => deleteServiceById(srv.id, srv.name));
+
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
+
+      footer.appendChild(visBtn);
+      footer.appendChild(actions);
+      card.appendChild(footer);
+
+      dom.adminServicesList.appendChild(card);
+    });
+  }
+
+  function openServicesManagerModal() {
+    if (!dom.modalServicesManager) return;
+    renderAdminServices();
+    dom.modalServicesManager.classList.remove('hidden');
+  }
+
+  function closeServicesManagerModal() {
+    dom.modalServicesManager?.classList.add('hidden');
+  }
+
+  function openServiceFormModal(srv = null) {
+    if (!dom.modalServiceForm) return;
+    clearErrors();
+
+    if (srv) {
+      state.editingServiceId = srv.id;
+      dom.serviceFormTitle.textContent = 'Modifica Servizio';
+      dom.serviceFormSubtitle.textContent = 'Aggiorna nome, prezzo o visibilità del servizio nel listino clienti';
+      const saveLabel = dom.btnSaveService?.querySelector('.btn-text');
+      if (saveLabel) saveLabel.textContent = 'Salva Modifiche';
+      dom.serviceName.value = srv.name || '';
+      dom.servicePrice.value = Number(srv.price || 0).toFixed(2);
+      dom.servicePriceUnit.value = srv.priceUnit || '';
+      dom.serviceCategory.value = srv.category || '';
+      dom.serviceDescription.value = srv.description || '';
+      dom.serviceActive.checked = srv.active !== false;
+      dom.btnDeleteService?.classList.remove('hidden');
+    } else {
+      state.editingServiceId = null;
+      dom.serviceFormTitle.textContent = 'Nuovo Servizio';
+      dom.serviceFormSubtitle.textContent = 'Aggiungi un servizio e il relativo prezzo al listino visibile ai clienti';
+      const saveLabel = dom.btnSaveService?.querySelector('.btn-text');
+      if (saveLabel) saveLabel.textContent = 'Salva Servizio';
+      dom.serviceName.value = '';
+      dom.servicePrice.value = '';
+      dom.servicePriceUnit.value = '';
+      dom.serviceCategory.value = '';
+      dom.serviceDescription.value = '';
+      dom.serviceActive.checked = true;
+      dom.btnDeleteService?.classList.add('hidden');
+    }
+
+    dom.modalServiceForm.classList.remove('hidden');
+    dom.serviceName.focus();
+  }
+
+  function closeServiceFormModal() {
+    dom.modalServiceForm?.classList.add('hidden');
+    state.editingServiceId = null;
+  }
+
+  async function toggleServiceActive(srv) {
+    const nextActive = srv.active === false;
+    try {
+      const res = await fetch(`/api/admin/services/${encodeURIComponent(srv.id)}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({ active: nextActive })
+      });
+      const data = await res.json();
+      if (res.status === 401 || res.status === 403) {
+        await performAdminLogout({ expired: true });
+        return;
+      }
+      if (!res.ok) throw new Error(data.message || 'Errore aggiornamento servizio.');
+      if (data.service) {
+        const idx = state.services.findIndex(s => s.id === data.service.id);
+        if (idx !== -1) state.services[idx] = data.service;
+      }
+      renderAdminServices();
+      showToast('success', 'Visibilità Aggiornata', `"${srv.name}" ${nextActive ? 'ora è visibile ai clienti' : 'è stato nascosto ai clienti'}.`);
+    } catch (err) {
+      showToast('error', 'Errore', err.message || 'Impossibile aggiornare il servizio.');
+    }
+  }
+
+  async function deleteServiceById(serviceId, name = '') {
+    const label = name ? `"${name}"` : 'questo servizio';
+    if (!window.confirm(`Vuoi davvero eliminare ${label} dal listino?`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/services/${encodeURIComponent(serviceId)}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (res.status === 401 || res.status === 403) {
+        await performAdminLogout({ expired: true });
+        return;
+      }
+      if (!res.ok) throw new Error(data.message || 'Errore eliminazione servizio.');
+
+      state.services = state.services.filter(s => s.id !== serviceId);
+      if (state.editingServiceId === serviceId) {
+        closeServiceFormModal();
+      }
+      renderAdminServices();
+      showToast('success', 'Servizio Eliminato', data.message || 'Rimosso dal listino.');
+    } catch (err) {
+      showToast('error', 'Errore Eliminazione', err.message || 'Impossibile eliminare il servizio.');
+    }
+  }
+
+  function bindAdminServicesEvents() {
+    dom.btnOpenServicesAdmin?.addEventListener('click', openServicesManagerModal);
+    dom.btnCloseServicesManager?.addEventListener('click', closeServicesManagerModal);
+    dom.modalServicesManager?.addEventListener('click', (e) => {
+      if (e.target === dom.modalServicesManager) closeServicesManagerModal();
+    });
+
+    dom.btnNewService?.addEventListener('click', () => openServiceFormModal(null));
+    dom.btnCloseServiceForm?.addEventListener('click', closeServiceFormModal);
+    dom.btnCancelServiceForm?.addEventListener('click', closeServiceFormModal);
+    dom.modalServiceForm?.addEventListener('click', (e) => {
+      if (e.target === dom.modalServiceForm) closeServiceFormModal();
+    });
+
+    dom.servicesStatusChips?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.cal-filter-chip');
+      if (!btn || !btn.dataset.filter) return;
+      state.servicesFilter = btn.dataset.filter;
+      renderAdminServices();
+    });
+
+    dom.servicesSearchInput?.addEventListener('input', () => {
+      state.servicesSearchQuery = dom.servicesSearchInput.value || '';
+      renderAdminServices();
+    });
+
+    dom.btnDeleteService?.addEventListener('click', () => {
+      if (!state.editingServiceId) return;
+      const cur = state.services.find(s => s.id === state.editingServiceId);
+      deleteServiceById(state.editingServiceId, cur?.name || '');
+    });
+
+    dom.formService?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearErrors();
+
+      const name = dom.serviceName.value.trim();
+      const rawPriceStr = String(dom.servicePrice.value || '').trim().replace(',', '.');
+      const price = rawPriceStr === '' ? NaN : Number(rawPriceStr);
+      const priceUnit = dom.servicePriceUnit.value.trim();
+      const category = dom.serviceCategory.value.trim() || 'Servizio Fotografico';
+      const description = dom.serviceDescription.value.trim();
+      const active = dom.serviceActive.checked;
+
+      let valid = true;
+      if (!name || name.length < 2) {
+        setError(dom.serviceName, dom.serviceNameError, 'Inserisci il nome del servizio (almeno 2 caratteri).');
+        valid = false;
+      }
+      if (!Number.isFinite(price) || price < 0) {
+        setError(dom.servicePrice, dom.servicePriceError, 'Inserisci un prezzo valido (0 o superiore).');
+        valid = false;
+      }
+      if (!valid) return;
+
+      const isEditing = Boolean(state.editingServiceId);
+      const endpoint = isEditing
+        ? `/api/admin/services/${encodeURIComponent(state.editingServiceId)}`
+        : '/api/admin/services';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      setButtonLoading(dom.btnSaveService, true);
+      try {
+        const res = await fetch(endpoint, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeaders()
+          },
+          body: JSON.stringify({ name, price, priceUnit, category, description, active })
+        });
+        const data = await res.json();
+        if (res.status === 401 || res.status === 403) {
+          await performAdminLogout({ expired: true });
+          return;
+        }
+        if (!res.ok) throw new Error(data.message || 'Errore salvataggio servizio.');
+
+        if (data.service) {
+          if (isEditing) {
+            const idx = state.services.findIndex(s => s.id === data.service.id);
+            if (idx !== -1) state.services[idx] = data.service;
+            else state.services.push(data.service);
+          } else {
+            state.services.push(data.service);
+          }
+          state.services = sortServicesClient(state.services);
+        }
+
+        closeServiceFormModal();
+        renderAdminServices();
+        showToast('success', isEditing ? 'Servizio Aggiornato' : 'Servizio Aggiunto', data.message);
+      } catch (err) {
+        showToast('error', 'Errore Salvataggio', err.message || 'Impossibile salvare il servizio.');
+      } finally {
+        setButtonLoading(dom.btnSaveService, false);
+      }
+    });
+  }
+
+  // Vista Cliente: caricamento e modale listino servizi offerti
+  async function loadPublicServices() {
+    try {
+      const res = await fetch('/api/public/services');
+      if (!res.ok) return;
+      const data = await res.json();
+      state.publicServices = Array.isArray(data.services) ? data.services : [];
+      const count = state.publicServices.length;
+
+      if (dom.clientServicesBadge) dom.clientServicesBadge.textContent = String(count);
+      if (dom.clientLoginServicesCount) dom.clientLoginServicesCount.textContent = String(count);
+
+      dom.btnClientServicesOpen?.classList.toggle('hidden', count === 0);
+      dom.clientLoginServicesWrap?.classList.toggle('hidden', count === 0);
+    } catch {
+      // Non blocca il caricamento della galleria cliente
+    }
+  }
+
+  function renderClientServicesList() {
+    if (!dom.clientServicesList) return;
+    dom.clientServicesList.innerHTML = '';
+
+    if (state.publicServices.length === 0) {
+      dom.clientServicesEmpty?.classList.remove('hidden');
+      return;
+    }
+    dom.clientServicesEmpty?.classList.add('hidden');
+
+    state.publicServices.forEach((srv) => {
+      const card = document.createElement('div');
+      card.className = 'service-card';
+
+      const top = document.createElement('div');
+      top.className = 'service-card-top';
+      top.innerHTML = `
+        <div class="service-card-title-wrap">
+          <span class="cash-cat-pill">${escapeHtml(srv.category || 'Servizio Fotografico')}</span>
+          <div class="service-card-name">${escapeHtml(srv.name)}</div>
+        </div>
+        <div class="service-price-box">
+          <span class="service-price-val">${escapeHtml(formatServicePrice(srv.price))}</span>
+          ${srv.priceUnit ? `<span class="service-price-unit">${escapeHtml(srv.priceUnit)}</span>` : ''}
+        </div>
+      `;
+      card.appendChild(top);
+
+      if (srv.description) {
+        const desc = document.createElement('p');
+        desc.className = 'service-card-desc';
+        desc.textContent = srv.description;
+        card.appendChild(desc);
+      }
+
+      dom.clientServicesList.appendChild(card);
+    });
+  }
+
+  function openClientServicesModal() {
+    if (!dom.modalClientServices) return;
+    renderClientServicesList();
+    dom.modalClientServices.classList.remove('hidden');
+  }
+
+  function closeClientServicesModal() {
+    dom.modalClientServices?.classList.add('hidden');
+  }
+
+  function bindClientServicesEvents() {
+    dom.btnClientServicesOpen?.addEventListener('click', openClientServicesModal);
+    dom.btnClientLoginServices?.addEventListener('click', openClientServicesModal);
+    dom.btnCloseClientServices?.addEventListener('click', closeClientServicesModal);
+    dom.modalClientServices?.addEventListener('click', (e) => {
+      if (e.target === dom.modalClientServices) closeClientServicesModal();
+    });
+  }
+
+  // =========================================================================
+  // GESTIONE MUSICHE DI SOTTOFONDO (ADMIN)
+  // =========================================================================
+  function setMusicSourceMode(mode) {
+    state.musicSourceMode = mode === 'url' ? 'url' : 'upload';
+    dom.musicSourceTabs?.querySelectorAll('.cal-filter-chip').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.source === state.musicSourceMode);
+    });
+    dom.musicUploadGroup?.classList.toggle('hidden', state.musicSourceMode !== 'upload');
+    dom.musicUrlGroup?.classList.toggle('hidden', state.musicSourceMode !== 'url');
+  }
+
+  function renderAdminMusic() {
+    if (!dom.adminMusicList) return;
+    const count = state.musicTracks.length;
+    if (dom.adminMusicCount) {
+      dom.adminMusicCount.textContent = `${count} ${count === 1 ? 'brano' : 'brani'}`;
+    }
+
+    dom.adminMusicList.innerHTML = '';
+    if (count === 0) {
+      dom.adminMusicEmpty?.classList.remove('hidden');
+      return;
+    }
+    dom.adminMusicEmpty?.classList.add('hidden');
+
+    state.musicTracks.forEach((track) => {
+      const isPlayingThis = musicPlayer.isPlaying && musicPlayer.currentTrackId === track.id;
+      const row = document.createElement('div');
+      row.className = `music-track-row${isPlayingThis ? ' is-playing' : ''}`;
+
+      const left = document.createElement('div');
+      left.className = 'music-track-left';
+
+      const playBtn = document.createElement('button');
+      playBtn.type = 'button';
+      playBtn.className = `btn-music-preview${isPlayingThis ? ' is-playing' : ''}`;
+      playBtn.title = isPlayingThis ? 'Metti in pausa' : 'Ascolta anteprima';
+      playBtn.innerHTML = isPlayingThis
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>';
+      playBtn.addEventListener('click', () => musicPlayer.previewTrack(track));
+
+      const meta = document.createElement('div');
+      meta.className = 'music-track-meta';
+      const sourceBadge = getTrackYouTubeId(track)
+        ? 'YouTube'
+        : (track.sourceType === 'url' ? 'Link HTTPS' : 'File Audio');
+      const sizePart = track.size > 0 ? `<span>${escapeHtml(formatFileSize(track.size))}</span>` : '';
+      const artistPart = track.artist ? `<span>${escapeHtml(track.artist)}</span>` : '';
+      meta.innerHTML = `
+        <div class="music-track-title" title="${escapeHtml(track.title)}">${escapeHtml(track.title)}</div>
+        <div class="music-track-sub">
+          <span class="cash-cat-pill">${sourceBadge}</span>
+          ${artistPart}
+          ${sizePart}
+        </div>
+      `;
+
+      left.appendChild(playBtn);
+      left.appendChild(meta);
+
+      const actions = document.createElement('div');
+      actions.className = 'music-track-actions';
+
+      const toggleBtn = document.createElement('button');
+      toggleBtn.type = 'button';
+      toggleBtn.className = `cash-status-pill ${track.enabled === false ? 'pending' : 'paid'}`;
+      toggleBtn.textContent = track.enabled === false ? 'Disattivata' : 'Attiva';
+      toggleBtn.title = 'Clicca per attivare o disattivare nella playlist di sottofondo';
+      toggleBtn.addEventListener('click', () => toggleMusicEnabled(track));
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'btn-activity-mini btn-delete-mini';
+      delBtn.textContent = 'Elimina';
+      delBtn.addEventListener('click', () => deleteMusicTrackById(track.id, track.title));
+
+      actions.appendChild(toggleBtn);
+      actions.appendChild(delBtn);
+
+      row.appendChild(left);
+      row.appendChild(actions);
+      dom.adminMusicList.appendChild(row);
+    });
+  }
+
+  function openMusicManagerModal() {
+    if (!dom.modalMusicManager) return;
+    renderAdminMusic();
+    dom.modalMusicManager.classList.remove('hidden');
+  }
+
+  function closeMusicManagerModal() {
+    dom.modalMusicManager?.classList.add('hidden');
+  }
+
+  async function toggleMusicEnabled(track) {
+    const nextEnabled = track.enabled === false;
+    try {
+      const res = await fetch(`/api/admin/music/${encodeURIComponent(track.id)}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({ enabled: nextEnabled })
+      });
+      const data = await res.json();
+      if (res.status === 401 || res.status === 403) {
+        await performAdminLogout({ expired: true });
+        return;
+      }
+      if (!res.ok) throw new Error(data.message || 'Errore aggiornamento brano.');
+
+      if (data.track) {
+        const idx = state.musicTracks.findIndex(t => t.id === data.track.id);
+        if (idx !== -1) state.musicTracks[idx] = data.track;
+      }
+      renderAdminMusic();
+      await musicPlayer.refreshFromServer();
+      showToast('success', 'Playlist Aggiornata', `"${track.title}" ${nextEnabled ? 'attivato' : 'disattivato'}.`);
+    } catch (err) {
+      showToast('error', 'Errore', err.message || 'Impossibile aggiornare il brano.');
+    }
+  }
+
+  async function deleteMusicTrackById(trackId, title = '') {
+    const label = title ? `"${title}"` : 'questo brano';
+    if (!window.confirm(`Vuoi davvero eliminare ${label} dalle musiche di sottofondo?`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/music/${encodeURIComponent(trackId)}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (res.status === 401 || res.status === 403) {
+        await performAdminLogout({ expired: true });
+        return;
+      }
+      if (!res.ok) throw new Error(data.message || 'Errore eliminazione brano.');
+
+      state.musicTracks = state.musicTracks.filter(t => t.id !== trackId);
+      if (musicPlayer.currentTrackId === trackId) {
+        musicPlayer.stop();
+      }
+      renderAdminMusic();
+      await musicPlayer.refreshFromServer();
+      showToast('success', 'Brano Eliminato', data.message || 'Rimosso dalla playlist.');
+    } catch (err) {
+      showToast('error', 'Errore Eliminazione', err.message || 'Impossibile eliminare il brano.');
+    }
+  }
+
+  function bindAdminMusicEvents() {
+    dom.btnOpenMusicAdmin?.addEventListener('click', openMusicManagerModal);
+    dom.btnCloseMusicManager?.addEventListener('click', closeMusicManagerModal);
+    dom.modalMusicManager?.addEventListener('click', (e) => {
+      if (e.target === dom.modalMusicManager) closeMusicManagerModal();
+    });
+
+    dom.musicSourceTabs?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.cal-filter-chip');
+      if (!btn || !btn.dataset.source) return;
+      clearErrors();
+      setMusicSourceMode(btn.dataset.source);
+    });
+
+    dom.musicFile?.addEventListener('change', () => {
+      const file = dom.musicFile.files?.[0];
+      if (file && !dom.musicTitle.value.trim()) {
+        dom.musicTitle.value = file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
+      }
+    });
+
+    dom.formAddMusic?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearErrors();
+
+      const title = dom.musicTitle.value.trim();
+      const artist = dom.musicArtist.value.trim();
+      const enabled = dom.musicEnabled.checked;
+
+      let valid = true;
+      if (!title || title.length < 2) {
+        setError(dom.musicTitle, dom.musicTitleError, 'Inserisci il titolo del brano (almeno 2 caratteri).');
+        valid = false;
+      }
+
+      if (state.musicSourceMode === 'url') {
+        const url = dom.musicUrl.value.trim();
+        if (!url || !url.startsWith('https://')) {
+          setError(dom.musicUrl, dom.musicUrlError, 'Inserisci un URL HTTPS valido (es. link YouTube o https://.../brano.mp3).');
+          valid = false;
+        } else if (isYouTubeUrlHost(url) && !extractYouTubeVideoId(url)) {
+          setError(dom.musicUrl, dom.musicUrlError, 'Link YouTube non valido: inserisci l\'URL di un video (es. https://www.youtube.com/watch?v=...).');
+          valid = false;
+        }
+        if (!valid) return;
+
+        setButtonLoading(dom.btnSaveMusic, true);
+        try {
+          const res = await fetch('/api/admin/music', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...getAuthHeaders()
+            },
+            body: JSON.stringify({ title, artist, url, enabled })
+          });
+          const data = await res.json();
+          if (res.status === 401 || res.status === 403) {
+            await performAdminLogout({ expired: true });
+            return;
+          }
+          if (!res.ok) throw new Error(data.message || 'Errore salvataggio brano.');
+
+          if (data.track) state.musicTracks.push(data.track);
+          dom.formAddMusic.reset();
+          dom.musicEnabled.checked = true;
+          renderAdminMusic();
+          await musicPlayer.refreshFromServer();
+          showToast('success', 'Brano Aggiunto', data.message);
+        } catch (err) {
+          showToast('error', 'Errore Caricamento', err.message || 'Impossibile aggiungere il brano.');
+        } finally {
+          setButtonLoading(dom.btnSaveMusic, false);
+        }
+        return;
+      }
+
+      const file = dom.musicFile?.files?.[0];
+      if (!file) {
+        setError(dom.musicFile, dom.musicFileError, 'Seleziona un file audio (MP3, WAV, OGG, M4A, AAC).');
+        valid = false;
+      } else if (file.size > 15 * 1024 * 1024) {
+        setError(dom.musicFile, dom.musicFileError, 'Il file supera il limite massimo di 15 MB.');
+        valid = false;
+      }
+      if (!valid) return;
+
+      setButtonLoading(dom.btnSaveMusic, true);
+      try {
+        const qs = new URLSearchParams({
+          title,
+          artist,
+          filename: file.name,
+          enabled: enabled ? '1' : '0'
+        });
+        const res = await fetch(`/api/admin/music?${qs.toString()}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': file.type || 'application/octet-stream',
+            ...getAuthHeaders()
+          },
+          body: file
+        });
+        const data = await res.json();
+        if (res.status === 401 || res.status === 403) {
+          await performAdminLogout({ expired: true });
+          return;
+        }
+        if (!res.ok) throw new Error(data.message || 'Errore upload file audio.');
+
+        if (data.track) state.musicTracks.push(data.track);
+        dom.formAddMusic.reset();
+        dom.musicEnabled.checked = true;
+        renderAdminMusic();
+        await musicPlayer.refreshFromServer();
+        showToast('success', 'Brano Caricato', data.message);
+      } catch (err) {
+        showToast('error', 'Errore Upload', err.message || 'Impossibile caricare il file audio.');
+      } finally {
+        setButtonLoading(dom.btnSaveMusic, false);
+      }
+    });
+  }
+
   window.addEventListener('keydown', (e) => {
     if (!dom.modalLightbox.classList.contains('hidden')) {
       if (e.target === dom.lightboxVideo && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === ' ')) {
@@ -3441,6 +4722,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (e.key === 'Escape' && dom.modalPhotoEditor && !dom.modalPhotoEditor.classList.contains('hidden')) {
       photoEditor.close();
+      return;
+    }
+    if (e.key === 'Escape' && dom.modalServiceForm && !dom.modalServiceForm.classList.contains('hidden')) {
+      closeServiceFormModal();
+      return;
+    }
+    if (e.key === 'Escape' && dom.modalServicesManager && !dom.modalServicesManager.classList.contains('hidden')) {
+      closeServicesManagerModal();
+      return;
+    }
+    if (e.key === 'Escape' && dom.modalClientServices && !dom.modalClientServices.classList.contains('hidden')) {
+      closeClientServicesModal();
+      return;
+    }
+    if (e.key === 'Escape' && dom.modalMusicManager && !dom.modalMusicManager.classList.contains('hidden')) {
+      closeMusicManagerModal();
       return;
     }
     if (e.key === 'Escape' && dom.modalTransaction && !dom.modalTransaction.classList.contains('hidden')) {
@@ -3485,7 +4782,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     dom.activityEndDate,
     dom.txnDescription,
     dom.txnAmount,
-    dom.txnDate
+    dom.txnDate,
+    dom.serviceName,
+    dom.servicePrice,
+    dom.musicTitle,
+    dom.musicUrl,
+    dom.musicFile
   ].forEach(inp => {
     if (!inp) return;
     inp.addEventListener('input', () => {
@@ -3504,8 +4806,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // =========================================================================
   bindAdminCalendarEvents();
   bindAdminCashEvents();
+  bindAdminServicesEvents();
+  bindClientServicesEvents();
+  bindAdminMusicEvents();
   photoEditor.init();
   await bgManager.init();
+  await musicPlayer.init();
   if (state.viewMode === 'client') {
     await initClientView();
   } else {
